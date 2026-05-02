@@ -1048,13 +1048,13 @@
       const primaryPats   = patients.filter(p => p.primary   === s.name && parseInt(p.freq));
       const secondaryPats = patients.filter(p => p.secondary === s.name && p.primary !== s.name && parseInt(p.freq));
       const tertiaryPats  = patients.filter(p => p.tertiary  === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq));
-      // Low-cost: only patients assigned to this therapist but NOT already counted above
-      const assignedIds   = new Set([...primaryPats, ...secondaryPats, ...tertiaryPats].map(p => p.id));
-      const lowcostPats   = patients.filter(p =>
+
+      // Low-cost: ALL patients with insurance = 'Low-cost' assigned to this therapist (any role)
+      // This is purely informational — shows the insurance type, not a separate role bucket
+      const lowcostPats = patients.filter(p =>
         p.insurance === 'Low-cost' &&
         (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name) &&
-        parseInt(p.freq) &&
-        !assignedIds.has(p.id)
+        parseInt(p.freq)
       );
 
       const getRole = (pat, role) => {
@@ -1066,12 +1066,11 @@
       const secondaryRows = secondaryPats.map(p => ({ pat:p, sessions: getRole(p,'s') }));
       const tertiaryRows  = tertiaryPats.map(p => ({ pat:p, sessions: getRole(p,'t') }));
 
-      const pSessTotal = primaryRows.reduce((a,r)=>a+r.sessions,0);
-      const sSessTotal = secondaryRows.reduce((a,r)=>a+r.sessions,0);
-      const tSessTotal = tertiaryRows.reduce((a,r)=>a+r.sessions,0);
-      const lcSessTotal = lowcostPats.reduce((a,p)=>a+(parseInt(p.freq)||0),0);
-      const totalSess  = pSessTotal + sSessTotal + tSessTotal + lcSessTotal;
-      const totalPats  = primaryPats.length + secondaryPats.length + tertiaryPats.length + lowcostPats.length;
+      const pSessTotal  = primaryRows.reduce((a,r)=>a+r.sessions,0);
+      const sSessTotal  = secondaryRows.reduce((a,r)=>a+r.sessions,0);
+      const tSessTotal  = tertiaryRows.reduce((a,r)=>a+r.sessions,0);
+      const totalSess   = pSessTotal + sSessTotal + tSessTotal;
+      const totalPats   = primaryPats.length + secondaryPats.length + tertiaryPats.length;
 
       grandPrimary   += primaryPats.length;
       grandSecondary += secondaryPats.length;
@@ -1109,19 +1108,26 @@
         return `
           <div class="caseload-section">
             <div class="caseload-section-hdr" onclick="toggleSection('${sectionId}')">
-              <span class="role-pill lowcost">Low-cost</span>
+              <span class="role-pill lowcost">💊 Low-cost Insurance</span>
               <span>${lowcostPats.length} patient${lowcostPats.length>1?'s':''}</span>
               <span class="sess-count">${lowcostPats.reduce((a,p)=>a+(parseInt(p.freq)||0),0)} sess/wk</span>
               <span class="chevron" id="chev-${sectionId}">▶</span>
             </div>
             <div class="caseload-section-body" id="${sectionId}">
-              ${lowcostPats.map(p => `
+              ${lowcostPats.map(p => {
+                const role = p.primary === s.name ? 'Primary'
+                           : p.secondary === s.name ? 'Secondary'
+                           : 'Tertiary';
+                const roleClass = role.toLowerCase();
+                return `
                 <div class="caseload-patient-row">
                   <div class="cp-name">${esc(p.name)}</div>
                   ${wardBadge(p.ward)}
+                  <span class="role-pill ${roleClass}" style="font-size:10px;padding:1px 6px;">${role}</span>
                   <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);min-width:36px;text-align:right;">${esc(p.room)||''}</div>
-                  <div class="cp-sessions" style="color:var(--accent);">${p.freq||'—'} <span>sess/wk</span></div>
-                </div>`).join('')}
+                  <div class="cp-sessions">${p.freq||'—'} <span>sess/wk</span></div>
+                </div>`;
+              }).join('')}
             </div>
           </div>`;
       })() : '';
