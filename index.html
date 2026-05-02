@@ -1943,7 +1943,7 @@
     );
   }
 
-  function _runAutoSchedule() {
+  async function _runAutoSchedule() {
     schedule = {};
     staff.forEach(s => ensureTherapistSlot(s.id));
 
