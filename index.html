@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rehab Team Masterlist</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ── Light mode (default) ── */
+  :root {
+    --accent: #0d9488;
+    --accent-hover: #0b7a70;
+    --accent-soft: #e0f2f1;
+    --accent-glow: rgba(13,148,136,0.15);
+    --bg: #f7f9fc;
+    --bg-card: #ffffff;
+    --bg-mid: #0f2044;
+    --bg-light: #1a3360;
+    --border: #dde4ee;
+    --text-primary: #0f2044;
+    --text-secondary: #4a5a7a;
+    --text-muted: #8a99b8;
+    --text-on-dark: rgba(255,255,255,0.7);
+    --text-on-dark-muted: rgba(255,255,255,0.45);
+    --sky: #e8f4fd;
+    --th-bg: #0f2044;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --modal-overlay: rgba(15,32,68,0.55);
+    /* discipline header tints */
+    --disc-pt-bg: #6b1212;
+    --disc-ot-bg: #064e3b;
+    --disc-slp-bg: #0d3d6e;
+    /* row highlights */
+    --ssr-row: #fefce8;
+    --ssr-hover: #fef08a;
+    --par-row: #fff7ed;
+    --par-hover: #fed7aa;
+  }
+
+  /* ── Dark mode (black & pink) ── */
+  [data-theme="dark"] {
+    --accent: #e91e8c;
+    --accent-hover: #c4177a;
+    --accent-soft: rgba(233,30,140,0.09);
+    --accent-glow: rgba(233,30,140,0.2);
+    --bg: #0a0a0f;
+    --bg-card: #111118;
+    --bg-mid: #08080d;
+    --bg-light: #16161f;
+    --border: #252530;
+    --text-primary: #f0f0f8;
+    --text-secondary: #a0a0c0;
+    --text-muted: #55556a;
+    --text-on-dark: rgba(255,255,255,0.85);
+    --text-on-dark-muted: rgba(255,255,255,0.4);
+    --sky: #1a1a26;
+    --th-bg: #08080d;
+    --red: #ff4466;
+    --red-light: rgba(255,68,102,0.12);
+    --modal-overlay: rgba(0,0,0,0.8);
+    --disc-pt-bg: #1e0808;
+    --disc-ot-bg: #081e0f;
+    --disc-slp-bg: #080f1e;
+    --ssr-row: rgba(234,179,8,0.08);
+    --ssr-hover: rgba(234,179,8,0.15);
+    --par-row: rgba(249,115,22,0.08);
+    --par-hover: rgba(249,115,22,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; transition: background 0.2s, color 0.2s; }
+
+  /* ── Header ── */
+  .header { background: var(--bg-mid); padding: 0 2rem; display: flex; align-items: center; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+  .header-logo { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-right: 12px; }
+  .header-title { font-size: 17px; font-weight: 600; color: #fff; }
+  .header-sub { font-size: 12px; color: var(--text-on-dark-muted); }
+
+  /* Theme toggle */
+  .theme-toggle { margin-left: auto; width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 17px; transition: all 0.15s; flex-shrink: 0; }
+  .theme-toggle:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.4); }
+
+  /* ── Tabs ── */
+  .tabs { background: var(--bg-light); padding: 0 2rem; display: flex; gap: 2px; overflow-x: auto; }
+  .tab-btn { padding: 12px 20px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.5); background: none; border: none; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; white-space: nowrap; }
+  .tab-btn:hover { color: rgba(255,255,255,0.85); }
+  .tab-btn.active { color: #fff; border-bottom-color: var(--accent); }
+
+  .page { display: none; }
+  .page.active { display: block; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+  /* ── Stats ── */
+  .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .stat-card { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; transition: border-color 0.15s, box-shadow 0.15s; }
+  .stat-card.clickable { cursor: pointer; user-select: none; }
+  .stat-card.clickable:hover { border-color: var(--accent); box-shadow: 0 2px 10px var(--accent-glow); }
+  .stat-card.active-filter { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 2px 12px var(--accent-glow); }
+  .stat-card.active-filter .stat-value { color: var(--accent); }
+  .stat-label { font-size: 11.5px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; }
+  .stat-value { font-size: 26px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  /* ── Toolbar ── */
+  .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .search-wrap { position: relative; flex: 1; min-width: 200px; }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px; pointer-events: none; }
+  .search-input { width: 100%; padding: 9px 12px 9px 36px; font-family: 'DM Sans', sans-serif; font-size: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); outline: none; transition: border-color 0.15s; }
+  .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .filter-select { padding: 9px 12px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); outline: none; cursor: pointer; }
+  .filter-select:focus { border-color: var(--accent); }
+  .btn { padding: 9px 18px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 500; border-radius: 8px; cursor: pointer; border: none; transition: all 0.15s; white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost { background: none; color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg); }
+
+  /* ── Table ── */
+  .table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
+  .table-wrap table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 900px; }
+  .table-wrap th { background: var(--th-bg); color: var(--text-on-dark); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; padding: 11px 14px; text-align: left; white-space: nowrap; }
+  .table-wrap td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text-primary); }
+  .table-wrap tr:last-child td { border-bottom: none; }
+  .table-wrap tr:hover td { background: var(--sky); }
+  .table-wrap tr.row-ssr td { background: var(--ssr-row); }
+  .table-wrap tr.row-ssr:hover td { background: var(--ssr-hover); }
+  .table-wrap tr.row-par td { background: var(--par-row); }
+  .table-wrap tr.row-par:hover td { background: var(--par-hover); }
+  .table-wrap .empty-row td { text-align: center; color: var(--text-muted); padding: 3rem; font-size: 14px; }
+  .mrn-code { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-secondary); }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 500; }
+  .badge-ward-a  { background: #e0f2f1; color: #0f766e; }
+  .badge-ward-b  { background: #ede9fe; color: #6d28d9; }
+  .badge-icu-1   { background: #fef3c7; color: #92400e; }
+  .badge-icu-2   { background: #fee2e2; color: #991b1b; }
+  .badge-thiqa   { background: #dbeafe; color: #1e40af; }
+  .badge-lowcost { background: #d1fae5; color: #065f46; }
+  .badge-abm     { background: #fce7f3; color: #9d174d; }
+  .badge-pt      { background: #f3e0e0; color: #7a1c1c; }
+  .badge-ot      { background: #d1fae5; color: #065f46; }
+  .badge-slp     { background: #dbeef8; color: #1565a0; }
+  [data-theme="dark"] .badge-ward-a  { background: rgba(13,148,136,0.15); color: #2dd4bf; }
+  [data-theme="dark"] .badge-ward-b  { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  [data-theme="dark"] .badge-icu-1   { background: rgba(217,119,6,0.15);  color: #fbbf24; }
+  [data-theme="dark"] .badge-icu-2   { background: rgba(220,38,38,0.15);  color: #f87171; }
+  [data-theme="dark"] .badge-thiqa   { background: rgba(37,99,235,0.15);  color: #60a5fa; }
+  [data-theme="dark"] .badge-lowcost { background: rgba(5,150,105,0.15);  color: #34d399; }
+  [data-theme="dark"] .badge-abm     { background: rgba(157,23,77,0.2);   color: #f9a8d4; }
+  [data-theme="dark"] .badge-pt      { background: rgba(153,27,27,0.2);   color: #fca5a5; }
+  [data-theme="dark"] .badge-ot      { background: rgba(6,95,70,0.2);     color: #6ee7b7; }
+  [data-theme="dark"] .badge-slp     { background: rgba(21,101,160,0.2);  color: #93c5fd; }
+
+  /* ── Icon buttons ── */
+  .icon-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text-muted); transition: all 0.15s; }
+  .icon-btn:hover { background: var(--bg); color: var(--text-primary); }
+  .icon-btn.del:hover { background: var(--red-light); color: var(--red); border-color: #fca5a5; }
+
+  /* ── Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: var(--modal-overlay); z-index: 200; display: none; align-items: center; justify-content: center; padding: 1.5rem; backdrop-filter: blur(2px); }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 740px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+  .modal-header { padding: 1.5rem 1.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg-card); z-index: 1; }
+  .modal-title { font-size: 17px; font-weight: 600; color: var(--text-primary); }
+  .modal-close { width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--bg); color: var(--text-secondary); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .modal-close:hover { background: var(--border); }
+  .modal-body { padding: 1.5rem 1.75rem; }
+  .modal-footer { padding: 1rem 1.75rem 1.5rem; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); background: var(--bg-card); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.span-2 { grid-column: span 2; }
+  .form-group.span-3 { grid-column: span 3; }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+  .form-input, .form-select { padding: 9px 11px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); outline: none; transition: border-color 0.15s; width: 100%; }
+  .form-input:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .form-section-title { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin: 1.25rem 0 0.75rem; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+  /* ── Staff ── */
+  .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .staff-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; display: flex; flex-direction: column; gap: 10px; position: relative; transition: box-shadow 0.15s; }
+  .staff-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  /* Discipline top-border: maroon = PT, green = OT, baby-blue = SLP */
+  .staff-card.disc-pt  { border-top: 4px solid #7a1c1c; }
+  .staff-card.disc-ot  { border-top: 4px solid #065f46; }
+  .staff-card.disc-slp { border-top: 4px solid #1565a0; }
+  .staff-avatar { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; flex-shrink: 0; }
+  /* Light mode avatars */
+  .staff-avatar.pt  { background: #f3e0e0; color: #7a1c1c; }
+  .staff-avatar.ot  { background: #d1fae5; color: #065f46; }
+  .staff-avatar.slp { background: #dbeef8; color: #1565a0; }
+  /* Dark mode avatars — stay the same discipline colors, slightly brighter */
+  [data-theme="dark"] .staff-avatar.pt  { background: rgba(122,28,28,0.3);  color: #fca5a5; }
+  [data-theme="dark"] .staff-avatar.ot  { background: rgba(6,95,70,0.3);    color: #6ee7b7; }
+  [data-theme="dark"] .staff-avatar.slp { background: rgba(21,101,160,0.3); color: #93c5fd; }
+  .staff-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .staff-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; }
+  .gender-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .gender-dot.male   { background: #3b82f6; }
+  .gender-dot.female { background: #ec4899; }
+  .gender-label { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+
+  /* ── Caseload ── */
+  .cload-summary-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .cload-sum-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
+  .caseload-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 18px; }
+  .caseload-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .caseload-header { padding: 1rem 1.25rem; display: flex; align-items: center; gap: 12px; }
+  .caseload-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
+  .caseload-avatar.pt  { background: rgba(120,28,28,0.25); color: #f9a8a8; }
+  .caseload-avatar.ot  { background: rgba(6,95,70,0.25);   color: #6ee7b7; }
+  .caseload-avatar.slp { background: rgba(21,101,160,0.25); color: #90caf9; }
+  .caseload-name { font-size: 15px; font-weight: 600; color: #fff; }
+  .caseload-disc { font-size: 11.5px; color: rgba(255,255,255,0.5); margin-top: 1px; }
+  .caseload-totals { display: flex; margin-left: auto; }
+  .cload-tot { text-align: center; padding: 0 12px; border-left: 1px solid rgba(255,255,255,0.15); }
+  .cload-tot-val { font-size: 20px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
+  .cload-tot-lbl { font-size: 10px; color: rgba(255,255,255,0.45); letter-spacing: 0.05em; text-transform: uppercase; }
+  .caseload-header.pt  { background: var(--disc-pt-bg); }
+  .caseload-header.ot  { background: var(--disc-ot-bg); }
+  .caseload-header.slp { background: var(--disc-slp-bg); }
+  .gender-strip { height: 4px; }
+  .gender-strip.male   { background: #3b82f6; }
+  .gender-strip.female { background: #ec4899; }
+  .caseload-section { border-bottom: 1px solid var(--border); }
+  .caseload-section:last-child { border-bottom: none; }
+  .caseload-section-hdr { padding: 9px 14px; display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; background: var(--bg); color: var(--text-muted); cursor: pointer; user-select: none; transition: background 0.12s; }
+  .caseload-section-hdr:hover { background: var(--sky); }
+  .chevron { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; margin-left: 2px; }
+  .chevron.open { transform: rotate(90deg); }
+  .caseload-section-body { display: none; }
+  .caseload-section-body.open { display: block; }
+  .role-pill { padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 600; }
+  .role-pill.primary   { background: #fef3c7; color: #92400e; }
+  .role-pill.secondary { background: #e0f2f1; color: #0f766e; }
+  .role-pill.tertiary  { background: #ede9fe; color: #6d28d9; }
+  .role-pill.lowcost   { background: #fce7f3; color: #9d174d; }
+  [data-theme="dark"] .role-pill.primary   { background: rgba(234,179,8,0.15);  color: #fbbf24; }
+  [data-theme="dark"] .role-pill.secondary { background: rgba(13,148,136,0.15); color: #2dd4bf; }
+  [data-theme="dark"] .role-pill.tertiary  { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  [data-theme="dark"] .role-pill.lowcost   { background: rgba(157,23,77,0.15);  color: #f9a8d4; }
+  .sess-count { margin-left: auto; font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .caseload-patient-row { padding: 9px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .caseload-patient-row:last-child { border-bottom: none; }
+  .cp-name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cp-sessions { font-weight: 600; color: var(--accent); font-size: 13px; min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cp-sessions span { font-size: 10px; color: var(--text-muted); font-weight: 400; }
+  .caseload-empty { padding: 2.5rem; text-align: center; color: var(--text-muted); font-size: 13.5px; }
+  .no-staff-msg { text-align: center; padding: 3rem; color: var(--text-muted); font-size: 14px; }
+
+  /* ── Staff discipline sections ── */
+  .disc-section { margin-bottom: 2rem; }
+  .disc-section:last-child { margin-bottom: 0; }
+  .disc-section-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-radius: 10px; margin-bottom: 12px;
+  }
+  .disc-section-header.pt  { background: rgba(122,28,28,0.08);  border-left: 4px solid #7a1c1c; }
+  .disc-section-header.ot  { background: rgba(6,95,70,0.08);    border-left: 4px solid #065f46; }
+  .disc-section-header.slp { background: rgba(21,101,160,0.08); border-left: 4px solid #1565a0; }
+  [data-theme="dark"] .disc-section-header.pt  { background: rgba(122,28,28,0.18);  }
+  [data-theme="dark"] .disc-section-header.ot  { background: rgba(6,95,70,0.18);    }
+  [data-theme="dark"] .disc-section-header.slp { background: rgba(21,101,160,0.18); }
+  .disc-section-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .disc-section-label.pt  { color: #7a1c1c; }
+  .disc-section-label.ot  { color: #065f46; }
+  .disc-section-label.slp { color: #1565a0; }
+  [data-theme="dark"] .disc-section-label.pt  { color: #fca5a5; }
+  [data-theme="dark"] .disc-section-label.ot  { color: #6ee7b7; }
+  [data-theme="dark"] .disc-section-label.slp { color: #93c5fd; }
+  .disc-section-count { font-size: 12px; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .disc-section-icon { font-size: 18px; }
+
+  /* ── Working day pills ── */
+  .day-toggles { display:flex; gap:6px; flex-wrap:wrap; }
+  .day-toggle {
+    padding:5px 11px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;
+    border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-muted);
+    transition:all 0.15s; user-select:none;
+  }
+  .day-toggle.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+  .day-toggle:hover  { border-color:var(--accent); color:var(--accent); }
+  /* Off-day cell in schedule */
+  .sched-day-cell.off-day { background:var(--bg); opacity:0.5; pointer-events:none; }
+  .sched-day-cell.off-day::after { content:'Off'; display:block; text-align:center; font-size:11px; color:var(--text-muted); padding:4px 0; }
+  /* Staff card day badges */
+  .day-badge { display:inline-flex; gap:3px; flex-wrap:wrap; margin-top:6px; }
+  .day-pip { width:22px; height:22px; border-radius:5px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; }
+  .day-pip.on  { background:var(--accent-soft); color:var(--accent); }
+  .day-pip.off { background:var(--border); color:var(--text-muted); text-decoration:line-through; }
+
+  /* ── Therapist recommendation panel ── */
+  .rec-panel { margin-top: 0.75rem; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .rec-panel-header { padding: 8px 12px; background: var(--bg); font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+  .rec-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s; }
+  .rec-item:last-child { border-bottom: none; }
+  .rec-item:hover { background: var(--sky); }
+  .rec-rank { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .rec-rank.gold   { background: #fef3c7; color: #92400e; }
+  .rec-rank.silver { background: #f1f5f9; color: #475569; }
+  .rec-rank.bronze { background: #fef0e6; color: #9a3412; }
+  [data-theme="dark"] .rec-rank.gold   { background: rgba(234,179,8,0.2);    color: #fbbf24; }
+  [data-theme="dark"] .rec-rank.silver { background: rgba(148,163,184,0.15); color: #94a3b8; }
+  [data-theme="dark"] .rec-rank.bronze { background: rgba(249,115,22,0.15);  color: #fb923c; }
+  .rec-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .rec-disc { font-size: 11px; color: var(--text-muted); }
+  .rec-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+  .rec-tag { font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 500; }
+  .rec-tag.good    { background: rgba(5,150,105,0.12);  color: #059669; border: 1px solid rgba(5,150,105,0.25); }
+  .rec-tag.caution { background: rgba(217,119,6,0.12);  color: #b45309; border: 1px solid rgba(217,119,6,0.25); }
+  .rec-tag.info    { background: var(--accent-soft);    color: var(--accent); border: 1px solid var(--accent-glow); }
+  [data-theme="dark"] .rec-tag.good    { background: rgba(5,150,105,0.15);  color: #34d399; }
+  [data-theme="dark"] .rec-tag.caution { background: rgba(217,119,6,0.15);  color: #fbbf24; }
+  .rec-slots { margin-left: auto; text-align: right; font-size: 11px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+  .rec-slots strong { display: block; font-size: 13px; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .rec-assign-btn { padding: 4px 10px; font-size: 11.5px; font-weight: 500; border-radius: 6px; border: none; background: var(--accent); color: #fff; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; white-space: nowrap; }
+  .rec-assign-btn:hover { opacity: 0.85; }
+  .rec-empty { padding: 1rem 12px; font-size: 13px; color: var(--text-muted); text-align: center; }
+  .rec-note { font-size: 11px; color: var(--text-muted); padding: 4px 12px 8px; font-style: italic; }
+
+  .confirm-modal { max-width: 400px; }
+  .confirm-icon { font-size: 36px; text-align: center; margin-bottom: 0.75rem; }
+  .confirm-title { font-size: 17px; font-weight: 600; color: var(--text-primary); text-align: center; margin-bottom: 0.4rem; }
+  .confirm-msg { font-size: 13.5px; color: var(--text-secondary); text-align: center; line-height: 1.5; }
+  .confirm-name { font-weight: 600; color: var(--text-primary); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { opacity: 0.88; }
+
+  /* ── Scheduling ── */
+  .sched-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap; }
+  .sched-wrap { overflow-x:auto; border-radius:14px; border:1px solid var(--border); background:var(--bg-card); }
+  .sched-table { border-collapse:collapse; width:100%; min-width:800px; }
+  .sched-table th {
+    background: var(--th-bg); color: var(--text-on-dark);
+    font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
+    padding:11px 14px; text-align:left; white-space:nowrap;
+  }
+  .sched-table th.day-header { text-align:center; min-width:150px; }
+  .sched-table td { padding:8px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .sched-table tr:last-child td { border-bottom:none; }
+  .sched-therapist-cell {
+    padding:10px 14px; background:var(--bg); border-right:2px solid var(--border);
+    min-width:160px; vertical-align:middle;
+  }
+  .sched-therapist-name { font-size:13.5px; font-weight:600; color:var(--text-primary); }
+  .sched-therapist-disc { font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .sched-disc-bar { width:3px; height:36px; border-radius:2px; margin-right:10px; flex-shrink:0; }
+  .sched-disc-bar.pt  { background:#7a1c1c; }
+  .sched-disc-bar.ot  { background:#065f46; }
+  .sched-disc-bar.slp { background:#1565a0; }
+  .sched-day-cell { min-width:150px; padding:6px; vertical-align:top; background:var(--bg-card); }
+  .sched-day-cell:hover { background:var(--sky); }
+  .sched-slot {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:5px 8px; margin-bottom:4px; border-radius:7px;
+    font-size:12px; font-weight:500; line-height:1.3;
+    border:1px solid transparent; border-left-width: 4px;
+  }
+  .sched-slot.primary   { background:rgba(234,179,8,0.12);  border-color:rgba(234,179,8,0.3);  color:var(--text-primary); }
+  .sched-slot.secondary { background:rgba(13,148,136,0.12); border-color:rgba(13,148,136,0.3); color:var(--text-primary); }
+  .sched-slot.tertiary  { background:rgba(124,58,237,0.12); border-color:rgba(124,58,237,0.3); color:var(--text-primary); }
+  .sched-slot.lowcost   { background:rgba(233,30,140,0.10); border-color:rgba(233,30,140,0.25);color:var(--text-primary); }
+  /* Category left-border overrides */
+  .sched-slot.cat-ssr     { border-left-color: #f59e0b; }
+  .sched-slot.cat-ltc     { border-left-color: #3b82f6; }
+  .sched-slot.cat-lowcost { border-left-color: #10b981; }
+  .sched-slot.cat-par     { border-left-color: #f97316; }
+  /* Category dot for legend and picker */
+  .cat-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
+  .cat-dot.cat-ssr     { background:#f59e0b; }
+  .cat-dot.cat-ltc     { background:#3b82f6; }
+  .cat-dot.cat-lowcost { background:#10b981; }
+  .cat-dot.cat-par     { background:#f97316; }
+  /* Legend bar */
+  .sched-legend { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:7px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; font-size:12px; color:var(--text-secondary); }
+  .sched-legend-item { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+  .sched-slot-remove {
+    width:16px; height:16px; border-radius:50%; border:none; background:rgba(0,0,0,0.12);
+    color:var(--text-muted); font-size:11px; cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; margin-left:4px; line-height:1;
+  }
+  .sched-slot-remove:hover { background:var(--red); color:#fff; }
+  .sched-add-btn {
+    width:100%; padding:4px 0; border:1px dashed var(--border); background:none;
+    color:var(--text-muted); border-radius:6px; font-size:11px; cursor:pointer;
+    transition:all 0.15s; margin-top:2px;
+  }
+  .sched-add-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .sched-empty-msg { text-align:center; padding:3rem; color:var(--text-muted); font-size:14px; }
+  /* Add-patient picker dropdown */
+  .sched-picker-overlay { position:fixed; inset:0; z-index:300; display:none; }
+  .sched-picker-overlay.open { display:block; }
+  .sched-picker {
+    position:fixed; background:var(--bg-card); border:1px solid var(--border);
+    border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.18);
+    width:260px; max-height:320px; overflow-y:auto; z-index:301; padding:6px;
+  }
+  .sched-picker-search {
+    width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:7px;
+    background:var(--bg); color:var(--text-primary); font-family:'DM Sans',sans-serif;
+    font-size:13px; outline:none; margin-bottom:6px;
+  }
+  .sched-picker-search:focus { border-color:var(--accent); }
+  .sched-picker-item {
+    padding:7px 10px; border-radius:7px; cursor:pointer; font-size:13px;
+    color:var(--text-primary); display:flex; align-items:center; gap:8px;
+  }
+  .sched-picker-item:hover { background:var(--sky); }
+  .sched-picker-item.disabled { color:var(--text-muted); cursor:not-allowed; }
+  .sched-picker-item.disabled:hover { background:none; }
+  .sched-picker-empty { padding:1rem; text-align:center; color:var(--text-muted); font-size:13px; }
+
+  @media (max-width: 700px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid.cols-3 { grid-template-columns: 1fr; }
+    .form-group.span-2, .form-group.span-3 { grid-column: span 1; }
+    .container { padding: 1rem; }
+    .caseload-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">🏥</div>
+  <div>
+    <div class="header-title">Rehab Team Masterlist</div>
+    <div class="header-sub">Patient &amp; Staff Registry</div>
+  </div>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">☀️</button>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active"  onclick="switchTab('patients',this)">📋 Patient List</button>
+  <button class="tab-btn"         onclick="switchTab('staff',this)">👥 Staff Directory</button>
+  <button class="tab-btn"         onclick="switchTab('caseload',this)">📊 Caseload Distribution</button>
+  <button class="tab-btn"         onclick="switchTab('schedule',this)">📅 Patient Scheduling</button>
+</div>
+
+<!-- ═══ PATIENTS ═══ -->
+<div id="page-patients" class="page active">
+  <div class="container">
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Total Patients</div>
+        <div class="stat-value" id="stat-total">0</div>
+      </div>
+      <div class="stat-card clickable" id="sc-ward-a" onclick="toggleWardFilter('Ward A')">
+        <div class="stat-label">⬡ Ward A</div>
+        <div class="stat-value" id="stat-ward-a">0</div>
+      </div>
+      <div class="stat-card clickable" id="sc-ward-b" onclick="toggleWardFilter('Ward B')">
+        <div class="stat-label">⬡ Ward B</div>
+        <div class="stat-value" id="stat-ward-b">0</div>
+      </div>
+      <div class="stat-card clickable" id="sc-icu-1" onclick="toggleWardFilter('ICU 1')">
+        <div class="stat-label">⬡ ICU 1</div>
+        <div class="stat-value" id="stat-icu1">0</div>
+      </div>
+      <div class="stat-card clickable" id="sc-icu-2" onclick="toggleWardFilter('ICU 2')">
+        <div class="stat-label">⬡ ICU 2</div>
+        <div class="stat-value" id="stat-icu2">0</div>
+      </div>
+    </div>
+    <!-- Active ward label -->
+    <div id="ward-filter-banner" style="display:none;margin-bottom:1rem;padding:8px 14px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;font-size:13px;color:var(--accent);align-items:center;gap:10px;">
+      <span id="ward-filter-banner-text"></span>
+      <button onclick="clearWardFilter()" style="margin-left:auto;font-size:12px;background:none;border:none;color:var(--accent);cursor:pointer;text-decoration:underline;">Clear filter</button>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="patient-search" type="text" placeholder="Search by name, MRN, room…" oninput="renderPatients()">
+      </div>
+      <select class="filter-select" id="filter-ward" onchange="onWardSelectChange()">
+        <option value="">All Wards</option>
+        <option>Ward A</option><option>Ward B</option><option>ICU 1</option><option>ICU 2</option>
+      </select>
+      <select class="filter-select" id="filter-insurance" onchange="renderPatients()">
+        <option value="">All Insurance</option>
+        <option>Thiqa</option><option>Low-cost</option><option>ABM</option>
+      </select>
+      <button class="btn btn-primary" onclick="openPatientModal()">+ Add Patient</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Patient Name</th><th>MRN</th><th>Gender</th><th>Ward</th><th>Room</th>
+            <th>Primary</th><th>Secondary</th><th>Tertiary</th>
+            <th>Insurance</th><th>Category</th><th>Details</th><th>Freq.</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="patient-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STAFF ═══ -->
+<div id="page-staff" class="page">
+  <div class="container">
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-label">Total Staff</div><div class="stat-value" id="stat-staff-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">PT</div><div class="stat-value" id="stat-staff-pt">0</div></div>
+      <div class="stat-card"><div class="stat-label">OT</div><div class="stat-value" id="stat-staff-ot">0</div></div>
+      <div class="stat-card"><div class="stat-label">SLP</div><div class="stat-value" id="stat-staff-slp">0</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="staff-search" type="text" placeholder="Search staff…" oninput="renderStaff()">
+      </div>
+      <select class="filter-select" id="filter-discipline" onchange="renderStaff()">
+        <option value="">All Disciplines</option>
+        <option>PT</option><option>OT</option><option>SLP</option>
+      </select>
+      <button class="btn btn-primary" onclick="openStaffModal()">+ Add Staff</button>
+    </div>
+    <div id="staff-sections"></div>
+    <p id="staff-empty" style="display:none;text-align:center;color:var(--text-muted);padding:3rem;font-size:14px;">No staff members added yet.</p>
+  </div>
+</div>
+
+<!-- ═══ CASELOAD ═══ -->
+<div id="page-caseload" class="page">
+  <div class="container">
+    <div class="cload-summary-bar" id="cload-summary-bar"></div>
+    <div class="caseload-grid" id="caseload-grid"></div>
+    <p id="caseload-empty" style="display:none;" class="no-staff-msg">No staff or patients found. Add staff and assign patients to see caseload distribution.</p>
+  </div>
+</div>
+
+<!-- ═══ SCHEDULE ═══ -->
+<div id="page-schedule" class="page">
+  <div class="container">
+    <div class="sched-toolbar">
+      <select class="filter-select" id="sched-filter-disc" onchange="renderSchedule()">
+        <option value="">All Disciplines</option>
+        <option>PT</option><option>OT</option><option>SLP</option>
+      </select>
+      <button class="btn btn-ghost" onclick="clearSchedule()" style="margin-left:auto;">🗑 Clear Week</button>
+      <button class="btn btn-primary" onclick="autoSchedule()">⚡ Auto-Schedule</button>
+    </div>
+    <div class="sched-legend" style="margin-bottom:1.25rem;">
+      <span style="font-weight:600;color:var(--text-primary);font-size:12px;">Insurance Category:</span>
+      <span class="sched-legend-item"><span class="cat-dot cat-ssr"></span>SSR (2 slots)</span>
+      <span class="sched-legend-item"><span class="cat-dot cat-ltc"></span>LTC (1 slot)</span>
+      <span class="sched-legend-item"><span class="cat-dot cat-lowcost"></span>Low-cost (1 slot)</span>
+      <span class="sched-legend-item"><span class="cat-dot cat-par"></span>PAR (1 slot)</span>
+    </div>
+    <div class="sched-wrap">
+      <table class="sched-table" id="sched-table">
+        <thead>
+          <tr>
+            <th>Therapist</th>
+            <th class="day-header">Monday</th>
+            <th class="day-header">Tuesday</th>
+            <th class="day-header">Wednesday</th>
+            <th class="day-header">Thursday</th>
+            <th class="day-header">Friday</th>
+          </tr>
+        </thead>
+        <tbody id="sched-tbody"></tbody>
+      </table>
+      <div id="sched-empty" class="sched-empty-msg" style="display:none;">
+        No staff added yet. Add therapists in the Staff Directory to build a schedule.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Patient picker dropdown (shared) -->
+<div class="sched-picker-overlay" id="picker-overlay" onclick="closePicker()"></div>
+<div class="sched-picker" id="picker-panel" style="display:none;">
+  <input class="sched-picker-search" id="picker-search" type="text" placeholder="Search patient…" oninput="filterPicker()">
+  <div id="picker-list"></div>
+</div>
+
+<!-- ═══ PATIENT MODAL ═══ -->
+<div class="modal-overlay" id="patient-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="patient-modal-title">Add Patient</div>
+      <button class="modal-close" onclick="closePatientModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-title">Patient Info</div>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label class="form-label">Full Name *</label>
+          <input class="form-input" id="f-name" type="text" placeholder="e.g. Mohammed Al Rashidi">
+        </div>
+        <div class="form-group">
+          <label class="form-label">MRN *</label>
+          <input class="form-input" id="f-mrn" type="text" placeholder="e.g. MRN-00123">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ward *</label>
+          <select class="form-select" id="f-ward">
+            <option value="">Select ward</option>
+            <option>Ward A</option><option>Ward B</option><option>ICU 1</option><option>ICU 2</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Room Number</label>
+          <input class="form-input" id="f-room" type="text" placeholder="e.g. 204B">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select class="form-select" id="f-gender" onchange="updateRecommendations()">
+            <option value="">Select</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sessions / Week</label>
+          <input class="form-input" id="f-freq" type="number" min="1" max="21" placeholder="e.g. 5">
+        </div>
+      </div>
+      <div class="form-section-title">Therapist Assignment</div>
+      <!-- Recommendation panel — updates live as gender/category are selected -->
+      <div class="rec-panel" id="rec-panel">
+        <div class="rec-panel-header">🎯 Recommended Therapists <span style="margin-left:auto;font-weight:400;font-style:italic;">Based on caseload, gender &amp; category balance</span></div>
+        <div id="rec-list"><div class="rec-empty">Select patient gender and category above to see recommendations.</div></div>
+      </div>
+      <div style="margin-top:1rem;">
+      <div class="form-grid cols-3">
+        <div class="form-group">
+          <label class="form-label">Primary Therapist</label>
+          <select class="form-select" id="f-primary" onchange="updateRecommendations()"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Secondary Therapist</label>
+          <select class="form-select" id="f-secondary" onchange="updateRecommendations()"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tertiary Therapist</label>
+          <select class="form-select" id="f-tertiary" onchange="updateRecommendations()"></select>
+        </div>
+      </div>
+      </div>
+      <div class="form-section-title">Insurance</div>
+      <div class="form-grid cols-3">
+        <div class="form-group">
+          <label class="form-label">Insurance *</label>
+          <select class="form-select" id="f-insurance" onchange="onInsuranceChange(); updateRecommendations()">
+            <option value="">Select</option>
+            <option>Thiqa</option><option>Low-cost</option><option>ABM</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="f-category" onchange="updateRecommendations()">
+            <option value="">Select</option>
+            <option>LTC</option><option>SSR</option><option>Low-cost</option><option>PAR</option>
+          </select>
+        </div>
+        <div class="form-group" id="f-details-group">
+          <label class="form-label">Details</label>
+          <select class="form-select" id="f-details">
+            <option value="">Select</option>
+            <option>Thiqa 1</option><option>Thiqa 2</option><option>Thiqa 3</option><option>Thiqa 4</option><option>ABM</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closePatientModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePatient()">Save Patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STAFF MODAL ═══ -->
+<div class="modal-overlay" id="staff-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title" id="staff-modal-title">Add Staff Member</div>
+      <button class="modal-close" onclick="closeStaffModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="grid-template-columns:1fr;">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input class="form-input" id="sf-name" type="text" placeholder="e.g. Dr. Sara Ahmed">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Discipline *</label>
+          <select class="form-select" id="sf-discipline">
+            <option value="">Select discipline</option>
+            <option value="PT">PT — Physical Therapist</option>
+            <option value="OT">OT — Occupational Therapist</option>
+            <option value="SLP">SLP — Speech-Language Pathologist</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender *</label>
+          <select class="form-select" id="sf-gender">
+            <option value="">Select gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes (optional)</label>
+          <input class="form-input" id="sf-notes" type="text" placeholder="e.g. Neuro specialty, weekdays only">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Working Days *</label>
+          <div class="day-toggles" id="sf-workdays">
+            <span class="day-toggle active" data-day="mon">Mon</span>
+            <span class="day-toggle active" data-day="tue">Tue</span>
+            <span class="day-toggle active" data-day="wed">Wed</span>
+            <span class="day-toggle active" data-day="thu">Thu</span>
+            <span class="day-toggle active" data-day="fri">Fri</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Click to toggle days on/off</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeStaffModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStaff()">Save Staff</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DELETE CONFIRM MODAL ═══ -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal confirm-modal">
+    <div class="modal-body" style="padding:2rem 1.75rem 1.5rem;">
+      <div class="confirm-icon">🗑️</div>
+      <div class="confirm-title">Remove Patient</div>
+      <p class="confirm-msg" style="margin-top:0.5rem;">
+        Are you sure you want to remove<br>
+        <span class="confirm-name" id="delete-patient-name"></span>?<br>
+        <span style="font-size:12px;color:var(--text-muted);margin-top:4px;display:block;">This action cannot be undone.</span>
+      </p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;gap:12px;">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" id="delete-confirm-btn">Remove Patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCHEDULE CONFIRM MODAL ═══ -->
+<div class="modal-overlay" id="sched-confirm-modal">
+  <div class="modal confirm-modal">
+    <div class="modal-body" style="padding:2rem 1.75rem 1.5rem;">
+      <div class="confirm-icon" id="sched-confirm-icon">⚡</div>
+      <div class="confirm-title" id="sched-confirm-title"></div>
+      <p class="confirm-msg" id="sched-confirm-msg" style="margin-top:0.5rem;"></p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;gap:12px;">
+      <button class="btn btn-ghost" onclick="closeSchedConfirm()">Cancel</button>
+      <button class="btn btn-primary" id="sched-confirm-btn"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let patients = JSON.parse(localStorage.getItem('rehab_patients') || '[]');
+  let staff    = JSON.parse(localStorage.getItem('rehab_staff')    || '[]');
+  let editingPatientId = null;
+  let editingStaffId   = null;
+  let activeWardFilter = '';
+
+  function save() {
+    localStorage.setItem('rehab_patients', JSON.stringify(patients));
+    localStorage.setItem('rehab_staff',    JSON.stringify(staff));
+  }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Tabs ──
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + tab).classList.add('active');
+    btn.classList.add('active');
+    if (tab === 'patients') renderPatients();
+    if (tab === 'staff')    renderStaff();
+    if (tab === 'caseload') renderCaseload();
+    if (tab === 'schedule') renderSchedule();
+  }
+
+  // ── Ward filter via stat cards ──
+  function toggleWardFilter(ward) {
+    activeWardFilter = (activeWardFilter === ward) ? '' : ward;
+    document.getElementById('filter-ward').value = activeWardFilter;
+    updateWardCardStyles();
+    updateWardBanner();
+    renderPatients();
+  }
+  function clearWardFilter() {
+    activeWardFilter = '';
+    document.getElementById('filter-ward').value = '';
+    updateWardCardStyles();
+    updateWardBanner();
+    renderPatients();
+  }
+  function onWardSelectChange() {
+    activeWardFilter = document.getElementById('filter-ward').value;
+    updateWardCardStyles();
+    updateWardBanner();
+    renderPatients();
+  }
+  function updateWardCardStyles() {
+    const map = { 'Ward A':'sc-ward-a','Ward B':'sc-ward-b','ICU 1':'sc-icu-1','ICU 2':'sc-icu-2' };
+    Object.values(map).forEach(id => document.getElementById(id).classList.remove('active-filter'));
+    if (activeWardFilter && map[activeWardFilter]) {
+      document.getElementById(map[activeWardFilter]).classList.add('active-filter');
+    }
+  }
+  function updateWardBanner() {
+    const banner = document.getElementById('ward-filter-banner');
+    const text   = document.getElementById('ward-filter-banner-text');
+    if (activeWardFilter) {
+      banner.style.display = 'flex';
+      text.textContent = 'Showing patients in ' + activeWardFilter + ' only';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+  // ── Badges ──
+  function wardBadge(w) {
+    const map = { 'Ward A':'badge-ward-a','Ward B':'badge-ward-b','ICU 1':'badge-icu-1','ICU 2':'badge-icu-2' };
+    return `<span class="badge ${map[w]||''}">${w||'—'}</span>`;
+  }
+  function insBadge(ins) {
+    const map = { 'Thiqa':'badge-thiqa','Low-cost':'badge-lowcost','ABM':'badge-abm' };
+    return ins ? `<span class="badge ${map[ins]||''}">${ins}</span>` : '—';
+  }
+
+  // ── Patient stats ──
+  function updatePatientStats() {
+    const f = w => patients.filter(p => p.ward === w).length;
+    document.getElementById('stat-total').textContent  = patients.length;
+    document.getElementById('stat-ward-a').textContent = f('Ward A');
+    document.getElementById('stat-ward-b').textContent = f('Ward B');
+    document.getElementById('stat-icu1').textContent   = f('ICU 1');
+    document.getElementById('stat-icu2').textContent   = f('ICU 2');
+  }
+
+  function renderPatients() {
+    updatePatientStats();
+    const q  = document.getElementById('patient-search').value.toLowerCase();
+    const fW = document.getElementById('filter-ward').value;
+    const fI = document.getElementById('filter-insurance').value;
+
+    const list = patients.filter(p =>
+      ((p.name||'').toLowerCase().includes(q) || (p.mrn||'').toLowerCase().includes(q) || (p.room||'').toLowerCase().includes(q)) &&
+      (!fW || p.ward === fW) && (!fI || p.insurance === fI)
+    );
+
+    const tbody = document.getElementById('patient-tbody');
+    if (!list.length) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="14">No patients found.</td></tr>`;
+      return;
+    }
+    const genderCell = g => {
+      if (!g) return '—';
+      const label = g === 'male' ? '♂ M' : '♀ F';
+      return `<span class="gender-label" style="font-size:12.5px;font-weight:500;"><span class="gender-dot ${g}"></span>${label}</span>`;
+    };
+    tbody.innerHTML = list.map((p, i) => {
+      const rowClass = p.category === 'SSR' ? 'row-ssr' : p.category === 'PAR' ? 'row-par' : '';
+      return `
+      <tr class="${rowClass}">
+        <td style="color:var(--text-muted);font-size:12px;">${i+1}</td>
+        <td style="font-weight:500;">${esc(p.name)}</td>
+        <td><span class="mrn-code">${esc(p.mrn)}</span></td>
+        <td>${genderCell(p.gender)}</td>
+        <td>${wardBadge(p.ward)}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:13px;">${esc(p.room)||'—'}</td>
+        <td>${esc(p.primary)||'—'}</td>
+        <td style="color:var(--text-secondary);">${esc(p.secondary)||'—'}</td>
+        <td style="color:var(--text-secondary);">${esc(p.tertiary)||'—'}</td>
+        <td>${insBadge(p.insurance)}</td>
+        <td style="font-size:12.5px;color:var(--text-secondary);">${esc(p.category)||'—'}</td>
+        <td style="font-size:12.5px;color:var(--text-secondary);">${esc(p.details)||'—'}</td>
+        <td style="text-align:center;font-weight:500;">${p.freq ? p.freq+'x/wk' : '—'}</td>
+        <td>
+          <div style="display:flex;gap:5px;align-items:center;">
+            <button class="icon-btn" data-action="edit" data-id="${p.id}" title="Edit patient">✏️</button>
+            <button class="icon-btn del" data-action="delete" data-id="${p.id}" title="Delete patient" style="font-size:15px;">🗑</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ══════════════════════════════════════════
+  //  SESSION DISTRIBUTION LOGIC (sum must equal freq exactly)
+  //
+  //  Freq = 1 (any assignment):
+  //    P = 1, S = 0, T = 0  — Primary always takes the single session
+  //
+  //  Primary only:
+  //    P = freq
+  //
+  //  Primary + Secondary (no Tertiary):
+  //    P = ceil(freq/2),  S = floor(freq/2)
+  //    freq=3 → P=2,S=1  |  freq=4 → P=2,S=2  |  freq=5 → P=3,S=2
+  //
+  //  Primary + Secondary + Tertiary:
+  //    T = floor(freq/3),  P = ceil(freq/3),  S = freq - P - T
+  //    freq=4 → P=2,S=1,T=1  |  freq=5 → P=2,S=2,T=1  |  freq=6 → P=2,S=2,T=2
+  // ══════════════════════════════════════════
+  function calcSessions(freq, hasP, hasS, hasT) {
+    freq = parseInt(freq) || 0;
+    if (!freq || !hasP) return { p:0, s:0, t:0 };
+
+    // Freq = 1: Primary takes the single session regardless of other assignments
+    if (freq === 1) return { p:1, s:0, t:0 };
+
+    // Primary only
+    if (!hasS && !hasT) return { p:freq, s:0, t:0 };
+
+    // Primary + Secondary (no Tertiary): split as evenly as possible
+    // P gets ceil, S gets floor — ensures P >= S and sum = freq
+    if (hasS && !hasT) {
+      const p = Math.ceil(freq / 2);
+      const s = freq - p;
+      return { p, s, t:0 };
+    }
+
+    // Primary + Secondary + Tertiary:
+    // T = floor(freq/3), P = ceil(freq/3), S = remainder
+    // freq=4 → T=1, P=2, S=1  |  freq=5 → T=1, P=2, S=2  |  freq=6 → T=2, P=2, S=2
+    const t = Math.floor(freq / 3);
+    const p = Math.ceil(freq / 3);
+    const s = freq - p - t;
+    return { p, s, t };
+  }
+
+  // ── Render Caseload ──
+  function renderCaseload() {
+    const grid   = document.getElementById('caseload-grid');
+    const empty  = document.getElementById('caseload-empty');
+    const sumBar = document.getElementById('cload-summary-bar');
+
+    if (!staff.length) {
+      grid.innerHTML = ''; sumBar.innerHTML = '';
+      empty.style.display = 'block'; return;
+    }
+    empty.style.display = 'none';
+
+    const initials = n => n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    let grandPrimary=0, grandSecondary=0, grandTertiary=0, grandSessions=0;
+
+    const cards = staff.map(s => {
+      // Assign each patient to exactly one role bucket (no double-counting)
+      const primaryPats   = patients.filter(p => p.primary   === s.name && parseInt(p.freq));
+      const secondaryPats = patients.filter(p => p.secondary === s.name && p.primary !== s.name && parseInt(p.freq));
+      const tertiaryPats  = patients.filter(p => p.tertiary  === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq));
+      // Low-cost: only patients assigned to this therapist but NOT already counted above
+      const assignedIds   = new Set([...primaryPats, ...secondaryPats, ...tertiaryPats].map(p => p.id));
+      const lowcostPats   = patients.filter(p =>
+        p.insurance === 'Low-cost' &&
+        (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name) &&
+        parseInt(p.freq) &&
+        !assignedIds.has(p.id)
+      );
+
+      const getRole = (pat, role) => {
+        const dist = calcSessions(pat.freq, !!pat.primary, !!pat.secondary, !!pat.tertiary);
+        return role === 'p' ? dist.p : role === 's' ? dist.s : dist.t;
+      };
+
+      const primaryRows   = primaryPats.map(p => ({ pat:p, sessions: getRole(p,'p') }));
+      const secondaryRows = secondaryPats.map(p => ({ pat:p, sessions: getRole(p,'s') }));
+      const tertiaryRows  = tertiaryPats.map(p => ({ pat:p, sessions: getRole(p,'t') }));
+
+      const pSessTotal = primaryRows.reduce((a,r)=>a+r.sessions,0);
+      const sSessTotal = secondaryRows.reduce((a,r)=>a+r.sessions,0);
+      const tSessTotal = tertiaryRows.reduce((a,r)=>a+r.sessions,0);
+      const lcSessTotal = lowcostPats.reduce((a,p)=>a+(parseInt(p.freq)||0),0);
+      const totalSess  = pSessTotal + sSessTotal + tSessTotal + lcSessTotal;
+      const totalPats  = primaryPats.length + secondaryPats.length + tertiaryPats.length + lowcostPats.length;
+
+      grandPrimary   += primaryPats.length;
+      grandSecondary += secondaryPats.length;
+      grandTertiary  += tertiaryPats.length;
+      grandSessions  += totalSess;
+      const discClass = s.discipline.toLowerCase();
+      const genderStrip = s.gender ? `<div class="gender-strip ${s.gender}"></div>` : '';
+
+      const renderSection = (rows, roleLabel, roleClass, sessTotal) => {
+        if (!rows.length) return '';
+        const sectionId = 'sec-' + s.id + '-' + roleClass;
+        return `
+          <div class="caseload-section">
+            <div class="caseload-section-hdr" onclick="toggleSection('${sectionId}')">
+              <span class="role-pill ${roleClass}">${roleLabel}</span>
+              <span>${rows.length} patient${rows.length>1?'s':''}</span>
+              <span class="sess-count">${sessTotal} sess/wk</span>
+              <span class="chevron" id="chev-${sectionId}">▶</span>
+            </div>
+            <div class="caseload-section-body" id="${sectionId}">
+              ${rows.map(({pat,sessions}) => `
+                <div class="caseload-patient-row">
+                  <div class="cp-name">${esc(pat.name)}</div>
+                  ${wardBadge(pat.ward)}
+                  <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);min-width:36px;text-align:right;">${esc(pat.room)||''}</div>
+                  <div class="cp-sessions">${sessions} <span>sess/wk</span></div>
+                </div>`).join('')}
+            </div>
+          </div>`;
+      };
+
+      const lowcostSection = lowcostPats.length ? (() => {
+        const sectionId = 'sec-' + s.id + '-lowcost';
+        return `
+          <div class="caseload-section">
+            <div class="caseload-section-hdr" onclick="toggleSection('${sectionId}')">
+              <span class="role-pill lowcost">Low-cost</span>
+              <span>${lowcostPats.length} patient${lowcostPats.length>1?'s':''}</span>
+              <span class="sess-count">${lowcostPats.reduce((a,p)=>a+(parseInt(p.freq)||0),0)} sess/wk</span>
+              <span class="chevron" id="chev-${sectionId}">▶</span>
+            </div>
+            <div class="caseload-section-body" id="${sectionId}">
+              ${lowcostPats.map(p => `
+                <div class="caseload-patient-row">
+                  <div class="cp-name">${esc(p.name)}</div>
+                  ${wardBadge(p.ward)}
+                  <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);min-width:36px;text-align:right;">${esc(p.room)||''}</div>
+                  <div class="cp-sessions" style="color:var(--accent);">${p.freq||'—'} <span>sess/wk</span></div>
+                </div>`).join('')}
+            </div>
+          </div>`;
+      })() : '';
+
+      return `
+        <div class="caseload-card">
+          ${genderStrip}
+          <div class="caseload-header ${discClass}">
+            <div class="caseload-avatar ${discClass}">${initials(s.name)}</div>
+            <div style="flex:1;min-width:0;">
+              <div class="caseload-name">${esc(s.name)}</div>
+              <div class="caseload-disc">${s.discipline}${s.gender ? ' · ' + (s.gender === 'male' ? '♂ Male' : '♀ Female') : ''}${s.notes ? ' · '+esc(s.notes) : ''}</div>
+            </div>
+            <div class="caseload-totals">
+              <div class="cload-tot">
+                <div class="cload-tot-val">${totalPats}</div>
+                <div class="cload-tot-lbl">Patients</div>
+              </div>
+              <div class="cload-tot">
+                <div class="cload-tot-val">${totalSess}</div>
+                <div class="cload-tot-lbl">Sess/wk</div>
+              </div>
+            </div>
+          </div>
+          <div class="caseload-body">
+            ${totalPats > 0
+              ? renderSection(primaryRows,   'Primary',   'primary',   pSessTotal)
+              + renderSection(secondaryRows, 'Secondary', 'secondary', sSessTotal)
+              + renderSection(tertiaryRows,  'Tertiary',  'tertiary',  tSessTotal)
+              + lowcostSection
+              : '<div class="caseload-empty">No patients assigned yet.</div>'
+            }
+          </div>
+        </div>`;
+    });
+
+    grid.innerHTML = cards.join('');
+
+    sumBar.innerHTML = `
+      <div class="cload-sum-card"><div class="stat-label">Staff Members</div><div class="stat-value">${staff.length}</div></div>
+      <div class="cload-sum-card"><div class="stat-label">Primary</div><div class="stat-value">${grandPrimary}</div></div>
+      <div class="cload-sum-card"><div class="stat-label">Secondary</div><div class="stat-value">${grandSecondary}</div></div>
+      <div class="cload-sum-card"><div class="stat-label">Tertiary</div><div class="stat-value">${grandTertiary}</div></div>
+      <div class="cload-sum-card"><div class="stat-label">Total Sessions/wk</div><div class="stat-value">${grandSessions}</div></div>
+    `;
+  }
+
+  // ── Staff render ──
+  function updateStaffStats() {
+    const f = d => staff.filter(s=>s.discipline===d).length;
+    document.getElementById('stat-staff-total').textContent = staff.length;
+    document.getElementById('stat-staff-pt').textContent    = f('PT');
+    document.getElementById('stat-staff-ot').textContent    = f('OT');
+    document.getElementById('stat-staff-slp').textContent   = f('SLP');
+  }
+  function renderStaff() {
+    updateStaffStats();
+    const q  = document.getElementById('staff-search').value.toLowerCase();
+    const fd = document.getElementById('filter-discipline').value;
+    const list = staff.filter(s => (s.name||'').toLowerCase().includes(q) && (!fd || s.discipline === fd));
+    const sections = document.getElementById('staff-sections');
+    const empty    = document.getElementById('staff-empty');
+
+    if (!list.length) { sections.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    const dBadge = d => `<span class="badge badge-${d.toLowerCase()}">${d}</span>`;
+    const ini    = n => n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+
+    const renderCard = s => {
+      const discKey     = s.discipline.toLowerCase();
+      const genderLabel = s.gender === 'male' ? 'Male' : s.gender === 'female' ? 'Female' : '';
+      const workDays    = s.workDays || ['mon','tue','wed','thu','fri'];
+      const dayLabels   = { mon:'M', tue:'T', wed:'W', thu:'Th', fri:'F' };
+      const dayPips     = DAYS.map(d =>
+        `<span class="day-pip ${workDays.includes(d)?'on':'off'}" title="${DAY_FULL[d]}">${dayLabels[d]}</span>`
+      ).join('');
+      return `
+        <div class="staff-card disc-${discKey}">
+          <div class="staff-actions">
+            <button class="icon-btn" data-action="edit-staff" data-id="${s.id}" title="Edit">✏️</button>
+            <button class="icon-btn del" data-action="delete-staff" data-id="${s.id}" title="Delete">🗑️</button>
+          </div>
+          <div class="staff-avatar ${discKey}">${ini(s.name)}</div>
+          <div>
+            <div class="staff-name">${esc(s.name)}</div>
+            <div style="margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              ${genderLabel ? `<span class="gender-label"><span class="gender-dot ${s.gender}"></span>${genderLabel}</span>` : ''}
+            </div>
+            <div class="day-badge">${dayPips}</div>
+            ${s.notes ? `<div style="font-size:12.5px;color:var(--text-muted);margin-top:6px;">${esc(s.notes)}</div>` : ''}
+          </div>
+        </div>`;
+    };
+
+    const DISCIPLINES = [
+      { key: 'PT',  label: 'Physical Therapy',       icon: '🦵' },
+      { key: 'OT',  label: 'Occupational Therapy',   icon: '🤲' },
+      { key: 'SLP', label: 'Speech-Language Pathology', icon: '🗣️' },
+    ];
+
+    sections.innerHTML = DISCIPLINES.map(({ key, label, icon }) => {
+      const group = list.filter(s => s.discipline === key);
+      if (!group.length) return '';
+      const dk = key.toLowerCase();
+      return `
+        <div class="disc-section">
+          <div class="disc-section-header ${dk}">
+            <span class="disc-section-icon">${icon}</span>
+            <span class="disc-section-label ${dk}">${label} (${key})</span>
+            <span class="disc-section-count">${group.length} staff member${group.length > 1 ? 's' : ''}</span>
+          </div>
+          <div class="staff-grid">
+            ${group.map(renderCard).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ══════════════════════════════════════════
+  //  THERAPIST RECOMMENDATION ENGINE
+  //  Scores each therapist — lower = better
+  //  Factors:
+  //   1. Gender match (hard rule for female patients, soft for male)
+  //   2. Slot load (fewer used slots = better)
+  //   3. Total patient count (fewer patients = better)
+  //   4. SSR/PAR balance (fewer heavy-category patients = better, when new patient is SSR/PAR)
+  // ══════════════════════════════════════════
+
+  // Count how many patients a therapist has assigned (primary only = their primary caseload)
+  function getTherapistPatientCount_primary(therapist) {
+    return patients.filter(p => p.primary === therapist.name).length;
+  }
+
+  // Count SSR+PAR patients a therapist sees (primary)
+  function getTherapistHeavyCatCount(therapist) {
+    return patients.filter(p =>
+      p.primary === therapist.name && (p.category === 'SSR' || p.category === 'PAR')
+    ).length;
+  }
+
+  // Count used slots for a therapist based on current patient list (not schedule)
+  function getTherapistCaseloadSlots(therapist) {
+    const assigned = patients.filter(p =>
+      p.primary === therapist.name ||
+      p.secondary === therapist.name ||
+      p.tertiary === therapist.name
+    );
+    const seen = new Set();
+    return assigned.reduce((total, p) => {
+      if (seen.has(p.id)) return total;
+      seen.add(p.id);
+      return total + (p.category === 'SSR' ? 2 : 1);
+    }, 0);
+  }
+
+  function scoreTherapist(therapist, patientGender, patientCategory, patientInsurance) {
+    const tags = [];
+    let score  = 0;
+    let eligible = true;
+
+    const usedSlots    = getTherapistCaseloadSlots(therapist);
+    const patientCount = getTherapistPatientCount_primary(therapist);
+    const heavyCat     = getTherapistHeavyCatCount(therapist);
+    const isHeavy      = patientCategory === 'SSR' || patientCategory === 'PAR';
+
+    // ── Gender rule ──
+    const gMatch = therapist.gender === patientGender;
+    const isFemalePatient = patientGender === 'female';
+    if (isFemalePatient && therapist.gender === 'male') {
+      // Female patients must see female therapist unless no female available
+      // We keep eligible=true but add a big penalty — caller will check if any female exists
+      score += 1000;
+      tags.push({ label: '⚠ Gender mismatch', cls: 'caution' });
+    } else if (gMatch) {
+      score -= 3;
+      tags.push({ label: '✓ Gender match', cls: 'good' });
+    } else if (patientGender === 'male' && therapist.gender === 'female') {
+      score += 2; // soft penalty — male can be seen by female if overloaded
+      tags.push({ label: 'Female therapist', cls: 'info' });
+    }
+
+    // ── Working days availability ──
+    const workDays = therapist.workDays || ['mon','tue','wed','thu','fri'];
+    const daysAvail = workDays.length;
+    if (daysAvail <= 2) {
+      score += 8;
+      tags.push({ label: `Limited days (${daysAvail}/5)`, cls: 'caution' });
+    } else if (daysAvail === 3) {
+      score += 3;
+      tags.push({ label: `${daysAvail} days/wk`, cls: 'info' });
+    } else {
+      tags.push({ label: `${daysAvail} days/wk`, cls: 'good' });
+    }
+
+    // ── Slot load ──
+    if (usedSlots >= SLOT_CAP) {
+      score += 500;
+      tags.push({ label: `Slots full (${usedSlots}/${SLOT_CAP})`, cls: 'caution' });
+    } else {
+      score += usedSlots * 2;
+      const rem = SLOT_CAP - usedSlots;
+      if (rem >= 8)      tags.push({ label: `Light load (${usedSlots}/${SLOT_CAP})`, cls: 'good' });
+      else if (rem >= 4) tags.push({ label: `Moderate (${usedSlots}/${SLOT_CAP})`, cls: 'info' });
+      else               tags.push({ label: `Heavy (${usedSlots}/${SLOT_CAP})`, cls: 'caution' });
+    }
+
+    // ── Patient count ──
+    score += patientCount * 1.5;
+
+    // ── SSR/PAR balance ──
+    if (isHeavy) {
+      score += heavyCat * 4;
+      if (heavyCat === 0)      tags.push({ label: 'No SSR/PAR yet', cls: 'good' });
+      else if (heavyCat <= 2)  tags.push({ label: `${heavyCat} SSR/PAR`, cls: 'info' });
+      else                     tags.push({ label: `${heavyCat} SSR/PAR (many)`, cls: 'caution' });
+    }
+
+    return { therapist, score, tags, usedSlots, patientCount, eligible };
+  }
+
+  function updateRecommendations() {
+    const patientGender   = document.getElementById('f-gender').value;
+    const patientCategory = document.getElementById('f-category').value;
+    const patientInsurance= document.getElementById('f-insurance').value;
+    const list = document.getElementById('rec-list');
+
+    if (!staff.length) {
+      list.innerHTML = '<div class="rec-empty">No staff added yet.</div>';
+      return;
+    }
+    if (!patientGender && !patientCategory) {
+      list.innerHTML = '<div class="rec-empty">Select patient gender and/or category above to see recommendations.</div>';
+      return;
+    }
+
+    // Score all staff
+    let scored = staff.map(s => scoreTherapist(s, patientGender, patientCategory, patientInsurance));
+
+    // If patient is female and at least one female therapist exists, remove male therapists
+    const femaleTherapistsExist = staff.some(s => s.gender === 'female');
+    if (patientGender === 'female' && femaleTherapistsExist) {
+      scored = scored.filter(r => r.therapist.gender === 'female');
+    }
+
+    // Sort by score ascending (lower = better)
+    scored.sort((a, b) => a.score - b.score);
+
+    const top3 = scored.slice(0, 3);
+    const rankMeta = [
+      { cls: 'gold',   emoji: '🥇' },
+      { cls: 'silver', emoji: '🥈' },
+      { cls: 'bronze', emoji: '🥉' },
+    ];
+
+    const discColors = { PT: '#7a1c1c', OT: '#065f46', SLP: '#1565a0' };
+
+    list.innerHTML = top3.map((r, i) => {
+      const { therapist: t, tags, usedSlots, patientCount } = r;
+      const rm = rankMeta[i];
+      const dc = discColors[t.discipline] || 'var(--text-muted)';
+      return `
+        <div class="rec-item" onclick="assignRecommended('${t.name}')">
+          <div class="rec-rank ${rm.cls}">${rm.emoji}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="rec-name">${esc(t.name)}</div>
+            <div class="rec-disc" style="color:${dc};">${t.discipline} · ${t.gender ? (t.gender==='male'?'♂ Male':'♀ Female') : 'Gender N/A'}</div>
+            <div class="rec-tags">${tags.map(tg=>`<span class="rec-tag ${tg.cls}">${tg.label}</span>`).join('')}</div>
+          </div>
+          <div class="rec-slots">
+            <strong>${patientCount}</strong>patients
+          </div>
+          <button class="rec-assign-btn" onclick="event.stopPropagation();assignRecommended('${t.name}')">Assign Primary</button>
+        </div>`;
+    }).join('') + (top3.length === 0
+      ? '<div class="rec-empty">No eligible therapists found.</div>'
+      : '<div class="rec-note">Click a therapist to assign as Primary. You can still manually adjust below.</div>'
+    );
+  }
+
+  function assignRecommended(name) {
+    document.getElementById('f-primary').value = name;
+    // Brief visual flash on the dropdown
+    const el = document.getElementById('f-primary');
+    el.style.borderColor = 'var(--accent)';
+    el.style.boxShadow   = '0 0 0 3px var(--accent-soft)';
+    setTimeout(() => { el.style.borderColor = ''; el.style.boxShadow = ''; }, 1200);
+  }
+
+  // ── Patient Modal ──
+  function openPatientModal(id) {
+    editingPatientId = id || null;
+    document.getElementById('patient-modal-title').textContent = id ? 'Edit Patient' : 'Add Patient';
+    document.getElementById('patient-modal').classList.add('open');
+    populateTherapistDropdowns();
+    if (id) {
+      const p = patients.find(x=>x.id===id);
+      document.getElementById('f-name').value      = p.name      || '';
+      document.getElementById('f-mrn').value       = p.mrn       || '';
+      document.getElementById('f-ward').value      = p.ward      || '';
+      document.getElementById('f-room').value      = p.room      || '';
+      document.getElementById('f-gender').value    = p.gender    || '';
+      document.getElementById('f-freq').value      = p.freq      || '';
+      document.getElementById('f-primary').value   = p.primary   || '';
+      document.getElementById('f-secondary').value = p.secondary || '';
+      document.getElementById('f-tertiary').value  = p.tertiary  || '';
+      document.getElementById('f-insurance').value = p.insurance || '';
+      document.getElementById('f-category').value  = p.category  || '';
+      document.getElementById('f-details').value   = p.details   || '';
+    } else {
+      ['f-name','f-mrn','f-room','f-freq'].forEach(id => document.getElementById(id).value='');
+      ['f-ward','f-gender','f-primary','f-secondary','f-tertiary','f-insurance','f-category','f-details'].forEach(id => document.getElementById(id).value='');
+    }
+    onInsuranceChange();
+    updateRecommendations();
+  }
+  function editPatient(id) { openPatientModal(id); }
+  function closePatientModal() { document.getElementById('patient-modal').classList.remove('open'); }
+  function savePatient() {
+    const name = document.getElementById('f-name').value.trim();
+    const mrn  = document.getElementById('f-mrn').value.trim();
+    const ward = document.getElementById('f-ward').value;
+    if (!name||!mrn||!ward) { alert('Please fill in Name, MRN, and Ward.'); return; }
+    const data = {
+      name, mrn, ward,
+      room:   document.getElementById('f-room').value.trim(),
+      gender: document.getElementById('f-gender').value,
+      freq:   document.getElementById('f-freq').value,
+      primary:   document.getElementById('f-primary').value,
+      secondary: document.getElementById('f-secondary').value,
+      tertiary:  document.getElementById('f-tertiary').value,
+      insurance: document.getElementById('f-insurance').value,
+      category:  document.getElementById('f-category').value,
+      details:   document.getElementById('f-details').value,
+    };
+    if (editingPatientId) {
+      const idx = patients.findIndex(p=>p.id===editingPatientId);
+      patients[idx] = { ...patients[idx], ...data };
+    } else {
+      patients.push({ id:uid(), ...data });
+    }
+    save(); closePatientModal(); renderPatients();
+  }
+  let pendingDeleteId = null;
+
+  function deletePatient(id) {
+    const p = patients.find(x => x.id === id);
+    if (!p) return;
+    pendingDeleteId = id;
+    document.getElementById('delete-patient-name').textContent = p.name;
+    document.getElementById('delete-modal').classList.add('open');
+  }
+  function closeDeleteModal() {
+    pendingDeleteId = null;
+    document.getElementById('delete-modal').classList.remove('open');
+  }
+  function confirmDeletePatient() {
+    if (!pendingDeleteId) return;
+    patients = patients.filter(p => p.id !== pendingDeleteId);
+    save();
+    closeDeleteModal();
+    renderPatients();
+  }
+  function onInsuranceChange() {
+    const ins = document.getElementById('f-insurance').value;
+    const detailsGroup = document.getElementById('f-details-group');
+    const showDetails = ins && ins !== 'Low-cost';
+    detailsGroup.style.opacity = showDetails ? '1' : '0.4';
+    // Clear details if Low-cost is selected (details don't apply)
+    if (!showDetails) document.getElementById('f-details').value = '';
+  }
+  function populateTherapistDropdowns() {
+    ['f-primary','f-secondary','f-tertiary'].forEach(sel => {
+      const el  = document.getElementById(sel);
+      const cur = el.value;
+      el.innerHTML = '<option value="">— None —</option>' +
+        staff.map(s=>`<option value="${s.name}">${esc(s.name)} (${s.discipline})</option>`).join('');
+      el.value = cur;
+    });
+  }
+
+  // ── Staff Modal ──
+  function openStaffModal(id) {
+    editingStaffId = id || null;
+    document.getElementById('staff-modal-title').textContent = id ? 'Edit Staff' : 'Add Staff Member';
+    document.getElementById('staff-modal').classList.add('open');
+
+    const workDays = id ? (staff.find(x=>x.id===id)?.workDays || ['mon','tue','wed','thu','fri']) : ['mon','tue','wed','thu','fri'];
+    document.querySelectorAll('#sf-workdays .day-toggle').forEach(btn => {
+      btn.classList.toggle('active', workDays.includes(btn.dataset.day));
+    });
+
+    if (id) {
+      const s = staff.find(x=>x.id===id);
+      document.getElementById('sf-name').value       = s.name       || '';
+      document.getElementById('sf-discipline').value = s.discipline || '';
+      document.getElementById('sf-gender').value     = s.gender     || '';
+      document.getElementById('sf-notes').value      = s.notes      || '';
+    } else {
+      ['sf-name','sf-notes'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('sf-discipline').value='';
+      document.getElementById('sf-gender').value='';
+    }
+  }
+  function editStaff(id) { openStaffModal(id); }
+  function closeStaffModal() { document.getElementById('staff-modal').classList.remove('open'); }
+  function saveStaff() {
+    const name = document.getElementById('sf-name').value.trim();
+    const disc = document.getElementById('sf-discipline').value;
+    if (!name||!disc) { alert('Please enter name and discipline.'); return; }
+    const workDays = [...document.querySelectorAll('#sf-workdays .day-toggle.active')].map(b=>b.dataset.day);
+    if (!workDays.length) { alert('Please select at least one working day.'); return; }
+    const data = {
+      name, discipline:disc,
+      gender:   document.getElementById('sf-gender').value,
+      notes:    document.getElementById('sf-notes').value.trim(),
+      workDays,
+    };
+    if (editingStaffId) {
+      const idx = staff.findIndex(s=>s.id===editingStaffId);
+      staff[idx] = { ...staff[idx], ...data };
+    } else {
+      staff.push({ id:uid(), ...data });
+    }
+    save(); closeStaffModal(); renderStaff();
+  }
+  function deleteStaff(id) {
+    if (!confirm('Remove this staff member?')) return;
+    staff = staff.filter(s=>s.id!==id);
+    save(); renderStaff();
+  }
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('theme-toggle').textContent = isDark ? '☀️' : '🌙';
+    localStorage.setItem('rehab_theme', isDark ? 'light' : 'dark');
+  }
+  // Apply saved theme on load
+  (function() {
+    const saved = localStorage.getItem('rehab_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
+    document.getElementById('theme-toggle').textContent = saved === 'dark' ? '🌙' : '☀️';
+  })();
+
+  function toggleSection(id) {
+    const body  = document.getElementById(id);
+    const chev  = document.getElementById('chev-' + id);
+    const isOpen = body.classList.toggle('open');
+    chev.classList.toggle('open', isOpen);
+  }
+
+  document.getElementById('sf-workdays').addEventListener('click', function(e) {
+    const btn = e.target.closest('.day-toggle');
+    if (btn) btn.classList.toggle('active');
+  });
+
+  document.getElementById('patient-modal').addEventListener('click', function(e){ if(e.target===this) closePatientModal(); });
+  document.getElementById('staff-modal').addEventListener('click',   function(e){ if(e.target===this) closeStaffModal(); });
+  document.getElementById('delete-modal').addEventListener('click',  function(e){ if(e.target===this) closeDeleteModal(); });
+  document.getElementById('delete-confirm-btn').addEventListener('click', confirmDeletePatient);
+  document.getElementById('sched-confirm-modal').addEventListener('click', function(e){ if(e.target===this) closeSchedConfirm(); });
+  document.getElementById('sched-confirm-btn').addEventListener('click', function() {
+    if (schedConfirmCallback) { schedConfirmCallback(); }
+    closeSchedConfirm();
+  });
+
+  // Event delegation for patient table buttons — avoids inline onclick quoting issues
+  document.getElementById('patient-tbody').addEventListener('click', function(e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'edit')   editPatient(id);
+    if (btn.dataset.action === 'delete') deletePatient(id);
+  });
+
+  // Event delegation for staff grid buttons
+  document.getElementById('staff-sections').addEventListener('click', function(e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'edit-staff')   editStaff(id);
+    if (btn.dataset.action === 'delete-staff') deleteStaff(id);
+  });
+
+  // ══════════════════════════════════════════
+  //  PATIENT SCHEDULING
+  //  schedule = { [therapistId]: { mon:[], tue:[], wed:[], thu:[], fri:[] } }
+  //  Each entry: { patientId, role }
+  //  Rules:
+  //   1. A patient cannot appear more than once per day (across ALL therapists)
+  //   2. A therapist cannot see a patient more times per week than their
+  //      assigned session count (from calcSessions based on role)
+  // ══════════════════════════════════════════
+  const DAYS     = ['mon','tue','wed','thu','fri'];
+  const DAY_FULL = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday' };
+
+  let schedule = JSON.parse(localStorage.getItem('rehab_schedule') || '{}');
+
+  function saveSchedule() {
+    localStorage.setItem('rehab_schedule', JSON.stringify(schedule));
+  }
+
+  function ensureTherapistSlot(tid) {
+    if (!schedule[tid]) schedule[tid] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
+  }
+
+  const SLOT_CAP = 14;
+
+  // All patient IDs scheduled on a given day across ALL therapists
+  function getPatientDaySet(day) {
+    const ids = new Set();
+    Object.values(schedule).forEach(s => (s[day]||[]).forEach(e => ids.add(e.patientId)));
+    return ids;
+  }
+
+  // Slot weight: SSR = 2, everything else = 1
+  function getSlotWeight(patient) {
+    return patient.category === 'SSR' ? 2 : 1;
+  }
+
+  // Total slot weight used by a therapist across all their unique patients this week
+  // Each patient is counted once (by their slot weight), regardless of how many sessions
+  function getTherapistUsedSlots(tid) {
+    if (!schedule[tid]) return 0;
+    const seen = new Set();
+    DAYS.forEach(day => {
+      (schedule[tid][day] || []).forEach(e => seen.add(e.patientId));
+    });
+    return [...seen].reduce((total, pid) => {
+      const pat = patients.find(p => p.id === pid);
+      return total + (pat ? getSlotWeight(pat) : 0);
+    }, 0);
+  }
+
+  // Remaining slot capacity for a therapist
+  function getTherapistRemainingSlots(tid) {
+    return SLOT_CAP - getTherapistUsedSlots(tid);
+  }
+
+  // How many times a specific patient is already scheduled under a specific therapist this week
+  function getTherapistPatientCount(tid, patientId) {
+    if (!schedule[tid]) return 0;
+    return DAYS.reduce((n, day) =>
+      n + (schedule[tid][day]||[]).filter(e => e.patientId === patientId).length, 0);
+  }
+
+  // How many sessions this therapist is allowed to see this patient (from calcSessions)
+  function getAllowedSessions(therapist, patient) {
+    const freq = parseInt(patient.freq) || 0;
+    const dist = calcSessions(freq, !!patient.primary, !!patient.secondary, !!patient.tertiary);
+    if (patient.primary   === therapist.name) return dist.p;
+    if (patient.secondary === therapist.name) return dist.s;
+    if (patient.tertiary  === therapist.name) return dist.t;
+    if (patient.insurance === 'Low-cost' &&
+       (patient.primary === therapist.name || patient.secondary === therapist.name || patient.tertiary === therapist.name))
+      return freq;
+    return 0;
+  }
+
+  // Role of a patient under a therapist
+  function getPatientRole(therapist, patient) {
+    if (patient.primary   === therapist.name) return 'primary';
+    if (patient.secondary === therapist.name) return 'secondary';
+    if (patient.tertiary  === therapist.name) return 'tertiary';
+    if (patient.insurance === 'Low-cost') return 'lowcost';
+    return 'primary';
+  }
+
+  // ── Render Schedule ──
+  function renderSchedule() {
+    const fd     = document.getElementById('sched-filter-disc').value;
+    const tbody  = document.getElementById('sched-tbody');
+    const empty  = document.getElementById('sched-empty');
+    const filtered = staff.filter(s => !fd || s.discipline === fd);
+
+    if (!filtered.length) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = filtered.map(s => {
+      ensureTherapistSlot(s.id);
+      const dk        = s.discipline.toLowerCase();
+      const usedSlots = getTherapistUsedSlots(s.id);
+      const remSlots  = SLOT_CAP - usedSlots;
+      const slotPct   = Math.min(100, Math.round((usedSlots / SLOT_CAP) * 100));
+      const slotColor = usedSlots >= SLOT_CAP ? 'var(--red)' : usedSlots >= 12 ? '#d97706' : 'var(--accent)';
+
+      const dayCells = DAYS.map(day => {
+        const workDays   = s.workDays || ['mon','tue','wed','thu','fri'];
+        const isWorkDay  = workDays.includes(day);
+        const entries    = schedule[s.id][day] || [];
+
+        if (!isWorkDay) {
+          return `<td class="sched-day-cell off-day"></td>`;
+        }
+
+        const slots = entries.map((e, idx) => {
+          const pat = patients.find(p => p.id === e.patientId);
+          if (!pat) return '';
+          const role    = e.role || getPatientRole(s, pat);
+          const allowed = getAllowedSessions(s, pat);
+          const used    = getTherapistPatientCount(s.id, pat.id);
+          const badge   = `<span style="font-size:9px;opacity:0.6;margin-left:2px;">${used}/${allowed}</span>`;
+
+          // Category color class for left border
+          const cat = (pat.category||'').toLowerCase().replace(/[^a-z]/g,'');
+          const catClass = cat === 'ssr' ? 'cat-ssr'
+                         : cat === 'ltc' ? 'cat-ltc'
+                         : cat === 'lowcost' || pat.insurance === 'Low-cost' ? 'cat-lowcost'
+                         : cat === 'par' ? 'cat-par'
+                         : '';
+          const catDot = catClass
+            ? `<span class="cat-dot ${catClass}" title="${(pat.category||pat.insurance||'').toUpperCase()}" style="flex-shrink:0;"></span>`
+            : '';
+
+          return `
+            <div class="sched-slot ${role} ${catClass}">
+              ${catDot}
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">
+                ${esc(pat.name)}${badge}
+              </span>
+              <button class="sched-slot-remove" data-action="remove-slot"
+                data-tid="${s.id}" data-day="${day}" data-idx="${idx}" title="Remove">×</button>
+            </div>`;
+        }).join('');
+
+        // Show "Add" only if therapist has remaining slot capacity AND patient quota available
+        const capReached = usedSlots >= SLOT_CAP;
+        const canAdd = !capReached && patients.some(p => {
+          if (!parseInt(p.freq)) return false;
+          const assigned = p.primary===s.name || p.secondary===s.name || p.tertiary===s.name;
+          if (!assigned) return false;
+          const allowed = getAllowedSessions(s, p);
+          const used    = getTherapistPatientCount(s.id, p.id);
+          if (used >= allowed) return false;
+          // Check: new patient would fit within slot cap
+          const alreadyBooked = DAYS.some(d => (schedule[s.id][d]||[]).some(e => e.patientId === p.id));
+          const wouldAdd = alreadyBooked ? 0 : getSlotWeight(p);
+          return (usedSlots + wouldAdd) <= SLOT_CAP;
+        });
+
+        return `
+          <td class="sched-day-cell">
+            ${slots}
+            ${canAdd ? `<button class="sched-add-btn" data-action="open-picker"
+              data-tid="${s.id}" data-day="${day}">+ Add patient</button>` : ''}
+          </td>`;
+      }).join('');
+
+      return `
+        <tr>
+          <td class="sched-therapist-cell">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="sched-disc-bar ${dk}"></div>
+              <div style="flex:1;min-width:0;">
+                <div class="sched-therapist-name">${esc(s.name)}</div>
+                <div class="sched-therapist-disc">${s.discipline}${s.gender ? ' · ' + (s.gender==='male'?'♂':'♀') : ''}</div>
+                <div style="margin-top:6px;">
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:2px;">
+                    <span>Slots</span>
+                    <span style="color:${slotColor};font-weight:600;">${usedSlots}/${SLOT_CAP}</span>
+                  </div>
+                  <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+                    <div style="height:100%;width:${slotPct}%;background:${slotColor};border-radius:3px;transition:width 0.3s;"></div>
+                  </div>
+                  ${usedSlots >= SLOT_CAP ? `<div style="font-size:10px;color:var(--red);margin-top:2px;font-weight:600;">Slot cap reached</div>` : `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${remSlots} slot${remSlots!==1?'s':''} remaining</div>`}
+                </div>
+              </div>
+            </div>
+          </td>
+          ${dayCells}
+        </tr>`;
+    }).join('');
+  }
+
+  // ── Picker state ──
+  let pickerTid = null;
+  let pickerDay = null;
+
+  function openPicker(tid, day, anchorEl) {
+    pickerTid = tid; pickerDay = day;
+    document.getElementById('picker-search').value = '';
+    filterPicker();
+    const panel   = document.getElementById('picker-panel');
+    const overlay = document.getElementById('picker-overlay');
+    const rect    = anchorEl.getBoundingClientRect();
+    panel.style.display = 'block';
+    panel.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+    panel.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 270) + 'px';
+    overlay.classList.add('open');
+    document.getElementById('picker-search').focus();
+  }
+
+  function closePicker() {
+    document.getElementById('picker-panel').style.display = 'none';
+    document.getElementById('picker-overlay').classList.remove('open');
+    pickerTid = null; pickerDay = null;
+  }
+
+  function filterPicker() {
+    const q         = document.getElementById('picker-search').value.toLowerCase();
+    const therapist = staff.find(s => s.id === pickerTid);
+    if (!therapist) return;
+
+    const list = document.getElementById('picker-list');
+
+    // Working day guard
+    const workDays = therapist.workDays || ['mon','tue','wed','thu','fri'];
+    if (!workDays.includes(pickerDay)) {
+      list.innerHTML = `<div class="sched-picker-empty">${esc(therapist.name)} is off on ${DAY_FULL[pickerDay]}.</div>`;
+      return;
+    }
+
+    const eligible = patients.filter(p =>
+      parseInt(p.freq) && (
+        p.primary   === therapist.name ||
+        p.secondary === therapist.name ||
+        p.tertiary  === therapist.name
+      )
+    );
+
+    const dayPatients = new Set((schedule[pickerTid]?.[pickerDay]||[]).map(e => e.patientId));
+    const busyToday   = getPatientDaySet(pickerDay);
+    const usedSlots   = getTherapistUsedSlots(pickerTid);
+
+    const filtered = eligible.filter(p =>
+      (p.name||'').toLowerCase().includes(q) || (p.mrn||'').toLowerCase().includes(q)
+    );
+
+    if (!filtered.length) {
+      list.innerHTML = `<div class="sched-picker-empty">No eligible patients found</div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(p => {
+      const allowed       = getAllowedSessions(therapist, p);
+      const used          = getTherapistPatientCount(pickerTid, p.id);
+      const alreadyHere   = dayPatients.has(p.id);
+      const busyElsewhere = !alreadyHere && busyToday.has(p.id);
+      const sessMaxed     = used >= allowed;
+      // Slot cap: new patient costs getSlotWeight slots; already-booked patient costs 0 extra
+      const alreadyBooked = DAYS.some(d => (schedule[pickerTid]?.[d]||[]).some(e => e.patientId === p.id));
+      const slotCost      = alreadyBooked ? 0 : getSlotWeight(p);
+      const slotMaxed     = !alreadyBooked && (usedSlots + slotCost) > SLOT_CAP;
+      const disabled      = alreadyHere || busyElsewhere || sessMaxed || slotMaxed;
+      const role          = getPatientRole(therapist, p);
+
+      let hint = '';
+      if (alreadyHere)        hint = ' · already here';
+      else if (busyElsewhere) hint = ' · busy today';
+      else if (sessMaxed)     hint = ` · sessions maxed (${used}/${allowed})`;
+      else if (slotMaxed)     hint = ` · slot cap full (${usedSlots}/${SLOT_CAP}, costs ${slotCost})`;
+      else                    hint = ` · ${used}/${allowed} sessions`;
+
+      const cat      = (p.category||'').toLowerCase().replace(/[^a-z]/g,'');
+      const catClass = cat === 'ssr' ? 'cat-ssr'
+                     : cat === 'ltc' ? 'cat-ltc'
+                     : cat === 'lowcost' || p.insurance === 'Low-cost' ? 'cat-lowcost'
+                     : cat === 'par' ? 'cat-par'
+                     : '';
+      const catDot = catClass ? `<span class="cat-dot ${catClass}" title="${(p.category||p.insurance||'')}"></span>` : '';
+
+      return `
+        <div class="sched-picker-item ${disabled ? 'disabled' : ''}"
+          ${disabled ? '' : `data-action="pick-patient" data-pid="${p.id}" data-role="${role}"`}>
+          <span class="role-pill ${role}" style="flex-shrink:0;">${role.charAt(0).toUpperCase()+role.slice(1)}</span>
+          ${catDot}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(p.name)}</span>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${hint}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Schedule confirm modal ──
+  let schedConfirmCallback = null;
+  function openSchedConfirm(icon, title, msg, btnLabel, cb) {
+    schedConfirmCallback = cb;
+    document.getElementById('sched-confirm-icon').textContent  = icon;
+    document.getElementById('sched-confirm-title').textContent = title;
+    document.getElementById('sched-confirm-msg').textContent   = msg;
+    document.getElementById('sched-confirm-btn').textContent   = btnLabel;
+    document.getElementById('sched-confirm-modal').classList.add('open');
+  }
+  function closeSchedConfirm() {
+    schedConfirmCallback = null;
+    document.getElementById('sched-confirm-modal').classList.remove('open');
+  }
+
+  // ── Auto-Schedule ──
+  function autoSchedule() {
+    if (!staff.length || !patients.length) return;
+    openSchedConfirm(
+      '⚡', 'Auto-Schedule Week',
+      'This will replace the current schedule with an auto-generated one based on session frequencies.',
+      'Auto-Schedule',
+      _runAutoSchedule
+    );
+  }
+
+  function _runAutoSchedule() {
+    schedule = {};
+    staff.forEach(s => ensureTherapistSlot(s.id));
+
+    // patientDays[patientId] = Set of days this patient is already scheduled (any therapist)
+    const patientDays = {};
+
+    const workload = patients.filter(p => parseInt(p.freq) > 0);
+
+    // Helper: how many patients a therapist has on a given day (for load balancing)
+    const dayLoad = (tid, day) => (schedule[tid]?.[day]||[]).length;
+
+    // Pick the lightest working day for a therapist that a patient hasn't been seen yet
+    const pickLightestDay = (tid, patId) => {
+      const therapist  = staff.find(s => s.id === tid);
+      const workDays   = therapist?.workDays || DAYS;
+      const available  = workDays.filter(d => !patientDays[patId]?.has(d));
+      if (!available.length) return null;
+      available.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || DAYS.indexOf(a) - DAYS.indexOf(b));
+      return available[0];
+    };
+
+    workload.forEach(pat => {
+      patientDays[pat.id] = patientDays[pat.id] || new Set();
+      const freq = parseInt(pat.freq);
+      const dist = calcSessions(freq, !!pat.primary, !!pat.secondary, !!pat.tertiary);
+
+      const assignments = [];
+      if (pat.primary && dist.p > 0) {
+        const t = staff.find(s => s.name === pat.primary);
+        if (t) assignments.push({ tid: t.id, role: 'primary', need: dist.p });
+      }
+      if (pat.secondary && dist.s > 0) {
+        const t = staff.find(s => s.name === pat.secondary);
+        if (t) assignments.push({ tid: t.id, role: 'secondary', need: dist.s });
+      }
+      if (pat.tertiary && dist.t > 0) {
+        const t = staff.find(s => s.name === pat.tertiary);
+        if (t) assignments.push({ tid: t.id, role: 'tertiary', need: dist.t });
+      }
+      if (!assignments.length && pat.insurance === 'Low-cost' && pat.primary) {
+        const t = staff.find(s => s.name === pat.primary);
+        if (t) assignments.push({ tid: t.id, role: 'lowcost', need: freq });
+      }
+
+      assignments.forEach(({ tid, role, need }) => {
+        ensureTherapistSlot(tid);
+        const weight = getSlotWeight(pat);
+
+        // Slot cap: only charge weight when first booking this patient under this therapist
+        const alreadyBookedHere = DAYS.some(d => (schedule[tid][d]||[]).some(e => e.patientId === pat.id));
+        if (!alreadyBookedHere) {
+          if (getTherapistUsedSlots(tid) + weight > SLOT_CAP) return;
+        }
+
+        let placed = 0;
+        while (placed < need) {
+          const day = pickLightestDay(tid, pat.id);
+          if (!day) break; // no valid days left
+          schedule[tid][day].push({ patientId: pat.id, role });
+          patientDays[pat.id].add(day);
+          placed++;
+        }
+      });
+    });
+
+    saveSchedule();
+    renderSchedule();
+  }
+
+  function clearSchedule() {
+    openSchedConfirm(
+      '🗑️', 'Clear Week Schedule',
+      'This will remove all scheduled sessions for the entire week.',
+      'Clear Schedule',
+      _runClearSchedule
+    );
+  }
+
+  function _runClearSchedule() {
+    schedule = {};
+    staff.forEach(s => ensureTherapistSlot(s.id));
+    saveSchedule();
+    renderSchedule();
+  }
+
+  renderPatients();
+  renderStaff();
+
+  document.getElementById('sched-tbody').addEventListener('click', function(e) {
+    const rmBtn = e.target.closest('[data-action="remove-slot"]');
+    if (rmBtn) {
+      const { tid, day, idx } = rmBtn.dataset;
+      schedule[tid][day].splice(parseInt(idx), 1);
+      saveSchedule(); renderSchedule(); return;
+    }
+    const addBtn = e.target.closest('[data-action="open-picker"]');
+    if (addBtn) {
+      openPicker(addBtn.dataset.tid, addBtn.dataset.day, addBtn);
+    }
+  });
+
+  document.getElementById('picker-list').addEventListener('click', function(e) {
+    const item = e.target.closest('[data-action="pick-patient"]');
+    if (!item || !pickerTid || !pickerDay) return;
+    const { pid, role } = item.dataset;
+    const therapist = staff.find(s => s.id === pickerTid);
+    const patient   = patients.find(p => p.id === pid);
+    if (!therapist || !patient) return;
+
+    // Rule 1: patient not already seen today
+    if (getPatientDaySet(pickerDay).has(pid)) return;
+    // Rule 2: therapist session limit not exceeded
+    const allowed = getAllowedSessions(therapist, patient);
+    const used    = getTherapistPatientCount(pickerTid, pid);
+    if (used >= allowed) return;
+    // Rule 3: therapist slot cap not exceeded
+    const alreadyBooked = DAYS.some(d => (schedule[pickerTid]?.[d]||[]).some(e => e.patientId === pid));
+    if (!alreadyBooked) {
+      const usedSlots = getTherapistUsedSlots(pickerTid);
+      if (usedSlots + getSlotWeight(patient) > SLOT_CAP) return;
+    }
+
+    schedule[pickerTid][pickerDay].push({ patientId: pid, role });
+    saveSchedule();
+    closePicker();
+    renderSchedule();
+  });
+</script>
+</body>
+</html>
