@@ -281,6 +281,14 @@
   .disc-section-count { font-size: 12px; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
   .disc-section-icon { font-size: 18px; }
 
+  .sched-day-cell.day-absent { background: repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(220,38,38,0.05) 6px,rgba(220,38,38,0.05) 12px); position:relative; }
+  .day-absent-label { font-size:10px; color:var(--red); font-weight:600; text-align:center; padding:3px 0 2px; opacity:0.8; }
+  .day-absent-btn { width:100%; padding:3px 0; border:1px dashed rgba(220,38,38,0.4); background:rgba(220,38,38,0.06); color:var(--red); border-radius:6px; font-size:10.5px; font-weight:600; cursor:pointer; margin-top:3px; transition:all 0.15s; }
+  .day-absent-btn:hover { background:rgba(220,38,38,0.14); }
+  .day-toggle-absent { font-size:9.5px; padding:2px 6px; border-radius:4px; border:1px solid var(--border); background:none; color:var(--text-muted); cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+  .day-toggle-absent:hover { border-color:var(--red); color:var(--red); }
+  .day-toggle-absent.active { background:rgba(220,38,38,0.1); border-color:var(--red); color:var(--red); }
+
   /* ── Absent/On-leave therapist ── */
   .sched-therapist-cell.absent { opacity: 0.45; }
   .absent-badge { display:inline-block; padding:2px 7px; border-radius:20px; font-size:10px; font-weight:600; background:rgba(220,38,38,0.12); color:var(--red); border:1px solid rgba(220,38,38,0.3); margin-top:3px; }
@@ -1676,11 +1684,93 @@
   const SLOT_CAP = 14;
 
   // Absent therapist IDs — runtime only, not persisted
-  const absentIds = new Set();
+  const absentIds  = new Set();   // full-week on leave
+  const absentDays = new Map();   // per-day: Map<therapistId, Set<day>>
+
   function toggleAbsent(tid) {
     if (absentIds.has(tid)) absentIds.delete(tid);
     else absentIds.add(tid);
     renderSchedule();
+  }
+
+  function toggleDayAbsent(tid, day) {
+    if (!absentDays.has(tid)) absentDays.set(tid, new Set());
+    const days = absentDays.get(tid);
+    if (days.has(day)) days.delete(day);
+    else days.add(day);
+    renderSchedule();
+  }
+
+  function isTherapistAbsentOnDay(tid, day) {
+    return absentIds.has(tid) || (absentDays.has(tid) && absentDays.get(tid).has(day));
+  }
+
+  // ── Redistribute a single therapist's patients for one day only ──
+  async function redistributeDay(tid, day) {
+    const absentTherapist = staff.find(s => s.id === tid);
+    if (!absentTherapist) return;
+
+    // Get patients scheduled for this therapist on this day
+    const entries = [...(schedule[tid]?.[day] || [])];
+    if (!entries.length) { showToast('No patients to redistribute for this day.'); return; }
+
+    // Remove all slots for this therapist on this day
+    schedule[tid][day] = [];
+
+    const isFemalePatient = pat => pat.gender === 'female';
+
+    // For each displaced patient, find best substitute for this day only
+    entries.forEach(e => {
+      const pat = patients.find(p => p.id === e.patientId);
+      if (!pat) return;
+
+      // Already seen today by someone else (from a previous iteration)?
+      const alreadyScheduledToday = DAYS.filter(d => d === day).some(() =>
+        Object.entries(schedule).some(([othTid, days]) =>
+          othTid !== tid && (days[day]||[]).some(slot => slot.patientId === pat.id)
+        )
+      );
+      if (alreadyScheduledToday) return; // rule: max 1 session per patient per day
+
+      // Find best substitute for this specific day
+      const prefDisc = absentTherapist.discipline;
+      const candidates = staff.filter(sub => {
+        if (sub.id === tid) return false;                          // not the absent therapist
+        if (absentIds.has(sub.id)) return false;                  // not on full-week leave
+        if (isTherapistAbsentOnDay(sub.id, day)) return false;    // not absent this day
+        if (sub.discipline === 'SLP') return false;               // never redistribute to SLP
+        if (isFemalePatient(pat) && sub.gender === 'male') return false; // gender rule
+        // Must work on this day
+        const workDays = sub.workDays || DAYS;
+        if (!workDays.includes(day)) return false;
+        // Must not already have this patient today
+        if ((schedule[sub.id]?.[day]||[]).some(slot => slot.patientId === pat.id)) return false;
+        // Slot cap: check if adding this patient would exceed cap
+        const alreadyBookedWithSub = DAYS.some(d => (schedule[sub.id]?.[d]||[]).some(sl => sl.patientId === pat.id));
+        if (!alreadyBookedWithSub) {
+          if (getTherapistUsedSlots(sub.id) + getSlotWeight(pat) > SLOT_CAP) return false;
+        }
+        return true;
+      });
+
+      if (!candidates.length) return; // no valid substitute — patient skipped
+
+      // Sort: prefer same discipline, then fewest slots used
+      candidates.sort((a, b) => {
+        const ap = a.discipline === prefDisc ? 0 : 1;
+        const bp = b.discipline === prefDisc ? 0 : 1;
+        if (ap !== bp) return ap - bp;
+        return getTherapistUsedSlots(a.id) - getTherapistUsedSlots(b.id);
+      });
+
+      const sub = candidates[0];
+      ensureTherapistSlot(sub.id);
+      schedule[sub.id][day].push({ patientId: pat.id, role: e.role || 'primary' });
+    });
+
+    await saveSchedule();
+    renderSchedule();
+    showToast(`Redistributed ${entries.length} patient${entries.length > 1 ? 's' : ''} from ${absentTherapist.name}'s ${DAY_FULL[day]} schedule.`);
   }
 
   let schedule = {};
@@ -1794,12 +1884,28 @@
       const slotColor = usedSlots >= SLOT_CAP ? 'var(--red)' : usedSlots >= 12 ? '#d97706' : 'var(--accent)';
 
       const dayCells = DAYS.map(day => {
-        const workDays   = s.workDays || ['mon','tue','wed','thu','fri'];
-        const isWorkDay  = workDays.includes(day);
-        const entries    = schedule[s.id][day] || [];
+        const workDays    = s.workDays || ['mon','tue','wed','thu','fri'];
+        const isWorkDay   = workDays.includes(day);
+        const isDayAbsent = isTherapistAbsentOnDay(s.id, day);
+        const entries     = schedule[s.id][day] || [];
 
         if (!isWorkDay) return `<td class="sched-day-cell off-day"></td>`;
-        if (isAbsent)   return `<td class="sched-day-cell absent-day"></td>`;
+
+        if (isDayAbsent) {
+          return `
+            <td class="sched-day-cell day-absent">
+              <div class="day-absent-label">🚫 Absent</div>
+              ${entries.length
+                ? `<button class="day-absent-btn" data-action="redistribute-day" data-tid="${s.id}" data-day="${day}">
+                     ⚡ Redistribute ${entries.length} patient${entries.length>1?'s':''}
+                   </button>`
+                : `<div style="font-size:10px;color:var(--text-muted);text-align:center;padding:4px 0;">No patients scheduled</div>`
+              }
+              <button class="day-toggle-absent active" data-action="toggle-day-absent" data-tid="${s.id}" data-day="${day}" style="margin-top:4px;width:100%;">
+                ✓ Mark Present
+              </button>
+            </td>`;
+        }
 
         const slots = entries.map((e, idx) => {
           const pat = patients.find(p => p.id === e.patientId);
@@ -1808,18 +1914,14 @@
           const allowed = getAllowedSessions(s, pat);
           const used    = getTherapistPatientCount(s.id, pat.id);
           const badge   = `<span style="font-size:9px;opacity:0.6;margin-left:2px;">${used}/${allowed}</span>`;
-
-          // Category color class for left border
-          const cat = (pat.category||'').toLowerCase().replace(/[^a-z]/g,'');
+          const cat     = (pat.category||'').toLowerCase().replace(/[^a-z]/g,'');
           const catClass = cat === 'ssr' ? 'cat-ssr'
                          : cat === 'ltc' ? 'cat-ltc'
                          : cat === 'lowcost' || pat.insurance === 'Low-cost' ? 'cat-lowcost'
-                         : cat === 'par' ? 'cat-par'
-                         : '';
+                         : cat === 'par' ? 'cat-par' : '';
           const catDot = catClass
             ? `<span class="cat-dot ${catClass}" title="${(pat.category||pat.insurance||'').toUpperCase()}" style="flex-shrink:0;"></span>`
             : '';
-
           return `
             <div class="sched-slot ${role} ${catClass}">
               ${catDot}
@@ -1831,16 +1933,14 @@
             </div>`;
         }).join('');
 
-        // Show "Add" only if therapist has remaining slot capacity AND patient quota available
         const capReached = usedSlots >= SLOT_CAP;
-        const canAdd = !capReached && patients.some(p => {
+        const canAdd = !capReached && !isAbsent && patients.some(p => {
           if (!parseInt(p.freq)) return false;
           const assigned = p.primary===s.name || p.secondary===s.name || p.tertiary===s.name;
           if (!assigned) return false;
           const allowed = getAllowedSessions(s, p);
           const used    = getTherapistPatientCount(s.id, p.id);
           if (used >= allowed) return false;
-          // Check: new patient would fit within slot cap
           const alreadyBooked = DAYS.some(d => (schedule[s.id][d]||[]).some(e => e.patientId === p.id));
           const wouldAdd = alreadyBooked ? 0 : getSlotWeight(p);
           return (usedSlots + wouldAdd) <= SLOT_CAP;
@@ -1848,6 +1948,11 @@
 
         return `
           <td class="sched-day-cell">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:3px;">
+              <button class="day-toggle-absent" data-action="toggle-day-absent" data-tid="${s.id}" data-day="${day}" title="Mark absent this day">
+                Absent
+              </button>
+            </div>
             ${slots}
             ${canAdd ? `<button class="sched-add-btn" data-action="open-picker"
               data-tid="${s.id}" data-day="${day}">+ Add patient</button>` : ''}
@@ -1930,9 +2035,9 @@
       return;
     }
 
-    // Absent guard
-    if (absentIds.has(therapist.id)) {
-      list.innerHTML = `<div class="sched-picker-empty">${esc(therapist.name)} is marked on leave this week.</div>`;
+    // Absent guard (full week or this specific day)
+    if (absentIds.has(therapist.id) || isTherapistAbsentOnDay(therapist.id, pickerDay)) {
+      list.innerHTML = `<div class="sched-picker-empty">${esc(therapist.name)} is marked absent${absentIds.has(therapist.id) ? ' this week' : ` on ${DAY_FULL[pickerDay]}`}.</div>`;
       return;
     }
 
@@ -2032,19 +2137,26 @@
     const dayLoad = (tid, day) => (schedule[tid]?.[day]||[]).length;
 
     // Pick the lightest available working day for a therapist this patient hasn't been seen on
+    // Also skips days where the therapist has a per-day absence marked
     const pickLightestDay = (tid, patId) => {
       const t = staff.find(s => s.id === tid);
       const workDays = t?.workDays || DAYS;
-      const available = workDays.filter(d => !patientDays[patId]?.has(d));
+      const available = workDays.filter(d =>
+        !patientDays[patId]?.has(d) && !isTherapistAbsentOnDay(tid, d)
+      );
       if (!available.length) return null;
       available.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || DAYS.indexOf(a) - DAYS.indexOf(b));
       return available[0];
     };
 
-    // Is a therapist available (not absent, not at slot cap for this patient)?
+    // Is a therapist available for the whole week (not on full leave, not at slot cap)?
     const isAvailable = (t, pat) => {
       if (!t) return false;
       if (absentIds.has(t.id)) return false;
+      // Check if they have at least one working day they're not absent on
+      const workDays = t.workDays || DAYS;
+      const hasAvailableDay = workDays.some(d => !isTherapistAbsentOnDay(t.id, d));
+      if (!hasAvailableDay) return false;
       const alreadyBooked = DAYS.some(d => (schedule[t.id][d]||[]).some(e => e.patientId === pat.id));
       const slots = getTherapistUsedSlots(t.id);
       if (!alreadyBooked && slots + getSlotWeight(pat) > SLOT_CAP) return false;
@@ -2229,9 +2341,17 @@
   })();
 
   document.getElementById('sched-tbody').addEventListener('click', function(e) {
-    // Toggle absent
+    // Toggle full-week on leave
     const absBtn = e.target.closest('[data-action="toggle-absent"]');
     if (absBtn) { toggleAbsent(absBtn.dataset.tid); return; }
+
+    // Toggle per-day absent
+    const dayAbsBtn = e.target.closest('[data-action="toggle-day-absent"]');
+    if (dayAbsBtn) { toggleDayAbsent(dayAbsBtn.dataset.tid, dayAbsBtn.dataset.day); return; }
+
+    // Redistribute single day
+    const redayBtn = e.target.closest('[data-action="redistribute-day"]');
+    if (redayBtn) { redistributeDay(redayBtn.dataset.tid, redayBtn.dataset.day); return; }
 
     // Remove slot
     const rmBtn = e.target.closest('[data-action="remove-slot"]');
