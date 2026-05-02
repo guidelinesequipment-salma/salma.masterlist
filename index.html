@@ -764,17 +764,88 @@
   </div>
 </div>
 
+<!-- ═══ LOADING OVERLAY ═══ -->
+<div id="app-loader" style="display:none;position:fixed;inset:0;background:var(--modal-overlay);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+  <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <div id="app-loader-msg" style="color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;">Loading…</div>
+</div>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
 <script>
-  let patients = JSON.parse(localStorage.getItem('rehab_patients') || '[]');
-  let staff    = JSON.parse(localStorage.getItem('rehab_staff')    || '[]');
+  // ══════════════════════════════════════════
+  //  SUPABASE CONFIG
+  // ══════════════════════════════════════════
+  const SUPA_URL = 'https://iiineqyblmwqkzipnguh.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpaW5lcXlibG13cWt6aXBuZ3VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzIyMTQsImV4cCI6MjA5MzMwODIxNH0.ZoLrIXG7VKO12Cnou6BXeTpDf9oZZBeHpkf_CZ5BFwE';
+  const HEADERS  = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Prefer': 'return=minimal' };
+
+  async function sbGet(table) {
+    const res = await fetch(`${SUPA_URL}/rest/v1/${table}?select=*`, { headers: HEADERS });
+    if (!res.ok) { console.error('Supabase GET error', table, await res.text()); return []; }
+    return res.json();
+  }
+  async function sbUpsert(table, row) {
+    const res = await fetch(`${SUPA_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(row),
+    });
+    if (!res.ok) console.error('Supabase UPSERT error', table, await res.text());
+  }
+  async function sbDelete(table, id) {
+    const res = await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
+      method: 'DELETE', headers: HEADERS,
+    });
+    if (!res.ok) console.error('Supabase DELETE error', table, await res.text());
+  }
+
+  // ── Map app objects → DB rows ──
+  const patientToRow = p => ({
+    id: p.id, name: p.name, mrn: p.mrn, ward: p.ward, room: p.room,
+    gender: p.gender || null, freq: p.freq || null,
+    primary_therapist: p.primary || null, secondary_therapist: p.secondary || null, tertiary_therapist: p.tertiary || null,
+    insurance: p.insurance || null, category: p.category || null, details: p.details || null,
+  });
+  const rowToPatient = r => ({
+    id: r.id, name: r.name, mrn: r.mrn, ward: r.ward, room: r.room,
+    gender: r.gender || '', freq: r.freq || '',
+    primary: r.primary_therapist || '', secondary: r.secondary_therapist || '', tertiary: r.tertiary_therapist || '',
+    insurance: r.insurance || '', category: r.category || '', details: r.details || '',
+  });
+  const staffToRow = s => ({
+    id: s.id, name: s.name, discipline: s.discipline,
+    gender: s.gender || null, notes: s.notes || null,
+    work_days: s.workDays || ['mon','tue','wed','thu','fri'],
+  });
+  const rowToStaff = r => ({
+    id: r.id, name: r.name, discipline: r.discipline,
+    gender: r.gender || '', notes: r.notes || '',
+    workDays: r.work_days || ['mon','tue','wed','thu','fri'],
+  });
+
+  // ── In-memory state ──
+  let patients = [];
+  let staff    = [];
   let editingPatientId = null;
   let editingStaffId   = null;
   let activeWardFilter = '';
 
-  function save() {
-    localStorage.setItem('rehab_patients', JSON.stringify(patients));
-    localStorage.setItem('rehab_staff',    JSON.stringify(staff));
+  // ── Save functions (write to Supabase + keep local array in sync) ──
+  async function savePatientRow(p) { await sbUpsert('patients', patientToRow(p)); }
+  async function deletePatientRow(id) { await sbDelete('patients', id); }
+  async function saveStaffRow(s) { await sbUpsert('staff', staffToRow(s)); }
+  async function deleteStaffRow(id) { await sbDelete('staff', id); }
+
+  // Legacy save() kept as no-op (Supabase writes happen inline now)
+  function save() {}
+
+  // ── Loading spinner ──
+  function showLoader(msg) {
+    document.getElementById('app-loader').style.display = 'flex';
+    document.getElementById('app-loader-msg').textContent = msg || 'Loading…';
   }
+  function hideLoader() { document.getElementById('app-loader').style.display = 'none'; }
+
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -1351,7 +1422,7 @@
   }
   function editPatient(id) { openPatientModal(id); }
   function closePatientModal() { document.getElementById('patient-modal').classList.remove('open'); }
-  function savePatient() {
+  async function savePatient() {
     const name = document.getElementById('f-name').value.trim();
     const mrn  = document.getElementById('f-mrn').value.trim();
     const ward = document.getElementById('f-ward').value;
@@ -1371,10 +1442,13 @@
     if (editingPatientId) {
       const idx = patients.findIndex(p=>p.id===editingPatientId);
       patients[idx] = { ...patients[idx], ...data };
+      await savePatientRow(patients[idx]);
     } else {
-      patients.push({ id:uid(), ...data });
+      const newP = { id:uid(), ...data };
+      patients.push(newP);
+      await savePatientRow(newP);
     }
-    save(); closePatientModal(); renderPatients();
+    closePatientModal(); renderPatients();
   }
   let pendingDeleteId = null;
 
@@ -1389,10 +1463,10 @@
     pendingDeleteId = null;
     document.getElementById('delete-modal').classList.remove('open');
   }
-  function confirmDeletePatient() {
+  async function confirmDeletePatient() {
     if (!pendingDeleteId) return;
+    await deletePatientRow(pendingDeleteId);
     patients = patients.filter(p => p.id !== pendingDeleteId);
-    save();
     closeDeleteModal();
     renderPatients();
   }
@@ -1439,7 +1513,7 @@
   }
   function editStaff(id) { openStaffModal(id); }
   function closeStaffModal() { document.getElementById('staff-modal').classList.remove('open'); }
-  function saveStaff() {
+  async function saveStaff() {
     const name = document.getElementById('sf-name').value.trim();
     const disc = document.getElementById('sf-discipline').value;
     if (!name||!disc) { alert('Please enter name and discipline.'); return; }
@@ -1454,15 +1528,19 @@
     if (editingStaffId) {
       const idx = staff.findIndex(s=>s.id===editingStaffId);
       staff[idx] = { ...staff[idx], ...data };
+      await saveStaffRow(staff[idx]);
     } else {
-      staff.push({ id:uid(), ...data });
+      const newS = { id:uid(), ...data };
+      staff.push(newS);
+      await saveStaffRow(newS);
     }
-    save(); closeStaffModal(); renderStaff();
+    closeStaffModal(); renderStaff();
   }
-  function deleteStaff(id) {
+  async function deleteStaff(id) {
     if (!confirm('Remove this staff member?')) return;
+    await deleteStaffRow(id);
     staff = staff.filter(s=>s.id!==id);
-    save(); renderStaff();
+    renderStaff();
   }
 
   function toggleTheme() {
@@ -1531,10 +1609,27 @@
   const DAYS     = ['mon','tue','wed','thu','fri'];
   const DAY_FULL = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday' };
 
-  let schedule = JSON.parse(localStorage.getItem('rehab_schedule') || '{}');
+  let schedule = {};
 
-  function saveSchedule() {
-    localStorage.setItem('rehab_schedule', JSON.stringify(schedule));
+  async function saveSchedule() {
+    // Rebuild all schedule_slots for current schedule object
+    // Delete all existing slots then re-insert (simplest approach for weekly schedule)
+    await fetch(`${SUPA_URL}/rest/v1/schedule_slots?id=neq.null`, { method: 'DELETE', headers: HEADERS });
+    const rows = [];
+    Object.entries(schedule).forEach(([tid, days]) => {
+      DAYS.forEach(day => {
+        (days[day] || []).forEach((e, idx) => {
+          rows.push({ id: tid + '_' + day + '_' + idx + '_' + e.patientId, therapist_id: tid, patient_id: e.patientId, day, role: e.role || '' });
+        });
+      });
+    });
+    if (rows.length) {
+      await fetch(`${SUPA_URL}/rest/v1/schedule_slots`, {
+        method: 'POST',
+        headers: { ...HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(rows),
+      });
+    }
   }
 
   function ensureTherapistSlot(tid) {
@@ -1903,7 +1998,7 @@
       });
     });
 
-    saveSchedule();
+    await saveSchedule();
     renderSchedule();
   }
 
@@ -1916,22 +2011,54 @@
     );
   }
 
-  function _runClearSchedule() {
+  async function _runClearSchedule() {
     schedule = {};
     staff.forEach(s => ensureTherapistSlot(s.id));
-    saveSchedule();
+    await saveSchedule();
     renderSchedule();
   }
 
   renderPatients();
   renderStaff();
 
+  // ── Bootstrap: load all data from Supabase ──
+  (async () => {
+    showLoader('Connecting to database…');
+    try {
+      const [patRows, staffRows, schedRows] = await Promise.all([
+        sbGet('patients'),
+        sbGet('staff'),
+        sbGet('schedule_slots'),
+      ]);
+
+      patients = patRows.map(rowToPatient);
+      staff    = staffRows.map(rowToStaff);
+
+      // Rebuild schedule object from flat rows
+      schedule = {};
+      schedRows.forEach(r => {
+        if (!schedule[r.therapist_id]) schedule[r.therapist_id] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
+        if (!schedule[r.therapist_id][r.day]) schedule[r.therapist_id][r.day] = [];
+        schedule[r.therapist_id][r.day].push({ patientId: r.patient_id, role: r.role });
+      });
+
+      hideLoader();
+      renderPatients();
+      renderStaff();
+    } catch(err) {
+      hideLoader();
+      document.getElementById('app-loader-msg').textContent = 'Failed to connect. Check your internet connection.';
+      document.getElementById('app-loader').style.display = 'flex';
+      console.error('Supabase load error:', err);
+    }
+  })();
+
   document.getElementById('sched-tbody').addEventListener('click', function(e) {
     const rmBtn = e.target.closest('[data-action="remove-slot"]');
     if (rmBtn) {
       const { tid, day, idx } = rmBtn.dataset;
       schedule[tid][day].splice(parseInt(idx), 1);
-      saveSchedule(); renderSchedule(); return;
+      saveSchedule().then(() => renderSchedule()); return;
     }
     const addBtn = e.target.closest('[data-action="open-picker"]');
     if (addBtn) {
@@ -1947,13 +2074,10 @@
     const patient   = patients.find(p => p.id === pid);
     if (!therapist || !patient) return;
 
-    // Rule 1: patient not already seen today
     if (getPatientDaySet(pickerDay).has(pid)) return;
-    // Rule 2: therapist session limit not exceeded
     const allowed = getAllowedSessions(therapist, patient);
     const used    = getTherapistPatientCount(pickerTid, pid);
     if (used >= allowed) return;
-    // Rule 3: therapist slot cap not exceeded
     const alreadyBooked = DAYS.some(d => (schedule[pickerTid]?.[d]||[]).some(e => e.patientId === pid));
     if (!alreadyBooked) {
       const usedSlots = getTherapistUsedSlots(pickerTid);
@@ -1961,9 +2085,7 @@
     }
 
     schedule[pickerTid][pickerDay].push({ patientId: pid, role });
-    saveSchedule();
-    closePicker();
-    renderSchedule();
+    saveSchedule().then(() => { closePicker(); renderSchedule(); });
   });
 </script>
 </body>
