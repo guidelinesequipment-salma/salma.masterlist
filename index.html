@@ -880,6 +880,14 @@
     setTimeout(() => { t.style.display = 'none'; }, duration || 4000);
   }
 
+  // ── Module-level constants ──
+  const DISC_COLORS  = { PT: '#7a1c1c', OT: '#065f46', SLP: '#1565a0' };
+  const DISCIPLINES  = [
+    { key: 'PT',  label: 'Physical Therapy',          icon: '🦵' },
+    { key: 'OT',  label: 'Occupational Therapy',      icon: '🤲' },
+    { key: 'SLP', label: 'Speech-Language Pathology', icon: '🗣️' },
+  ];
+
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -1257,12 +1265,6 @@
         </div>`;
     };
 
-    const DISCIPLINES = [
-      { key: 'PT',  label: 'Physical Therapy',       icon: '🦵' },
-      { key: 'OT',  label: 'Occupational Therapy',   icon: '🤲' },
-      { key: 'SLP', label: 'Speech-Language Pathology', icon: '🗣️' },
-    ];
-
     sections.innerHTML = DISCIPLINES.map(({ key, label, icon }) => {
       const group = list.filter(s => s.discipline === key);
       if (!group.length) return '';
@@ -1318,7 +1320,7 @@
     }, 0);
   }
 
-  function scoreTherapist(therapist, patientGender, patientCategory, patientInsurance) {
+  function scoreTherapist(therapist, patientGender, patientCategory) {
     const tags = [];
     let score  = 0;
 
@@ -1385,7 +1387,6 @@
   function updateRecommendations() {
     const patientGender   = document.getElementById('f-gender').value;
     const patientCategory = document.getElementById('f-category').value;
-    const patientInsurance= document.getElementById('f-insurance').value;
     const list = document.getElementById('rec-list');
 
     if (!staff.length) {
@@ -1398,7 +1399,7 @@
     }
 
     // Score all staff
-    let scored = staff.map(s => scoreTherapist(s, patientGender, patientCategory, patientInsurance));
+    let scored = staff.map(s => scoreTherapist(s, patientGender, patientCategory));
 
     // If patient is female and at least one female therapist exists, remove male therapists
     const femaleTherapistsExist = staff.some(s => s.gender === 'female');
@@ -1416,12 +1417,10 @@
       { cls: 'bronze', emoji: '🥉' },
     ];
 
-    const discColors = { PT: '#7a1c1c', OT: '#065f46', SLP: '#1565a0' };
-
     list.innerHTML = top3.map((r, i) => {
       const { therapist: t, tags, usedSlots, patientCount } = r;
       const rm = rankMeta[i];
-      const dc = discColors[t.discipline] || 'var(--text-muted)';
+      const dc = DISC_COLORS[t.discipline] || 'var(--text-muted)';
       return `
         <div class="rec-item" data-rec-name="${esc(t.name)}">
           <div class="rec-rank ${rm.cls}">${rm.emoji}</div>
@@ -1483,7 +1482,7 @@
     const name = document.getElementById('f-name').value.trim();
     const mrn  = document.getElementById('f-mrn').value.trim();
     const ward = document.getElementById('f-ward').value;
-    if (!name||!mrn||!ward) { alert('Please fill in Name, MRN, and Ward.'); return; }
+    if (!name||!mrn||!ward) { showToast('⚠️ Please fill in Name, MRN, and Ward.'); return; }
     const data = {
       name, mrn, ward,
       room:   document.getElementById('f-room').value.trim(),
@@ -1530,10 +1529,10 @@
   function onInsuranceChange() {
     const ins = document.getElementById('f-insurance').value;
     const detailsGroup = document.getElementById('f-details-group');
+    // Details only apply to Thiqa and ABM; hide/clear for Low-cost
     const showDetails = ins && ins !== 'Low-cost';
     detailsGroup.style.opacity = showDetails ? '1' : '0.4';
-    // Clear details if Low-cost is selected (details don't apply)
-    if (!showDetails) document.getElementById('f-details').value = '';
+    if (ins === 'Low-cost') document.getElementById('f-details').value = '';
   }
   function populateTherapistDropdowns() {
     ['f-primary','f-secondary','f-tertiary'].forEach(sel => {
@@ -1551,13 +1550,13 @@
     document.getElementById('staff-modal-title').textContent = id ? 'Edit Staff' : 'Add Staff Member';
     document.getElementById('staff-modal').classList.add('open');
 
-    const workDays = id ? (staff.find(x=>x.id===id)?.workDays || ['mon','tue','wed','thu','fri']) : ['mon','tue','wed','thu','fri'];
+    const s = id ? staff.find(x=>x.id===id) : null;
+    const workDays = s?.workDays || ['mon','tue','wed','thu','fri'];
     document.querySelectorAll('#sf-workdays .day-toggle').forEach(btn => {
       btn.classList.toggle('active', workDays.includes(btn.dataset.day));
     });
 
-    if (id) {
-      const s = staff.find(x=>x.id===id);
+    if (s) {
       document.getElementById('sf-name').value       = s.name       || '';
       document.getElementById('sf-discipline').value = s.discipline || '';
       document.getElementById('sf-gender').value     = s.gender     || '';
@@ -1573,9 +1572,9 @@
   async function saveStaff() {
     const name = document.getElementById('sf-name').value.trim();
     const disc = document.getElementById('sf-discipline').value;
-    if (!name||!disc) { alert('Please enter name and discipline.'); return; }
+    if (!name||!disc) { showToast('⚠️ Please enter name and discipline.'); return; }
     const workDays = [...document.querySelectorAll('#sf-workdays .day-toggle.active')].map(b=>b.dataset.day);
-    if (!workDays.length) { alert('Please select at least one working day.'); return; }
+    if (!workDays.length) { showToast('⚠️ Please select at least one working day.'); return; }
     const data = {
       name, discipline:disc,
       gender:   document.getElementById('sf-gender').value,
@@ -1774,7 +1773,7 @@
     let placed = 0, forwarded = 0;
 
     sorted.forEach(({ e, pat }) => {
-      // Rule: patient must not already be scheduled by someone on the absent day
+      // Rule: patient must not already be seen on the absent day by someone else
       const alreadyToday = Object.entries(schedule).some(([othTid, days]) =>
         othTid !== tid && (days[day]||[]).some(sl => sl.patientId === pat.id)
       );
@@ -1870,11 +1869,6 @@
       const pat = patients.find(p => p.id === pid);
       return total + (pat ? getSlotWeight(pat) : 0);
     }, 0);
-  }
-
-  // Remaining slot capacity for a therapist
-  function getTherapistRemainingSlots(tid) {
-    return SLOT_CAP - getTherapistUsedSlots(tid);
   }
 
   // How many times a specific patient is already scheduled under a specific therapist this week
