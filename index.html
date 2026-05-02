@@ -2053,15 +2053,18 @@
 
     // Find the best substitute therapist for unplaced sessions:
     //   - Not absent, not SLP, has remaining slot capacity
+    //   - Female patients must not be redistributed to male therapists
     //   - Prefer same discipline as the original therapist
     //   - Sort by fewest used slots (least loaded first)
     const findSubstitute = (pat, preferDiscipline) => {
+      const isFemalePatient = pat.gender === 'female';
       const candidates = staff.filter(sub => {
         if (absentIds.has(sub.id)) return false;
-        if (sub.discipline === 'SLP') return false;            // rule: never redistribute to SLP
+        if (sub.discipline === 'SLP') return false;
         if (!isAvailable(sub, pat)) return false;
-        // Don't pick the patient's own primary/secondary/tertiary (they're already handled)
         if (sub.name === pat.primary || sub.name === pat.secondary || sub.name === pat.tertiary) return false;
+        // Female patients cannot be redistributed to male therapists
+        if (isFemalePatient && sub.gender === 'male') return false;
         return true;
       });
       if (!candidates.length) return null;
