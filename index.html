@@ -1041,7 +1041,7 @@
     empty.style.display = 'none';
 
     const initials = n => n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-    let grandPrimary=0, grandSecondary=0, grandTertiary=0, grandSessions=0;
+    let grandPrimary=0, grandSecondary=0, grandTertiary=0, grandSessions=0, grandLowcost=0;
 
     const cards = staff.map(s => {
       // Assign each patient to exactly one role bucket (no double-counting)
@@ -1076,6 +1076,7 @@
       grandPrimary   += primaryPats.length;
       grandSecondary += secondaryPats.length;
       grandTertiary  += tertiaryPats.length;
+      grandLowcost   += lowcostPats.length;
       grandSessions  += totalSess;
       const discClass = s.discipline.toLowerCase();
       const genderStrip = s.gender ? `<div class="gender-strip ${s.gender}"></div>` : '';
@@ -1140,6 +1141,10 @@
                 <div class="cload-tot-lbl">Patients</div>
               </div>
               <div class="cload-tot">
+                <div class="cload-tot-val">${lowcostPats.length}</div>
+                <div class="cload-tot-lbl">Low-cost</div>
+              </div>
+              <div class="cload-tot">
                 <div class="cload-tot-val">${totalSess}</div>
                 <div class="cload-tot-lbl">Sess/wk</div>
               </div>
@@ -1164,6 +1169,7 @@
       <div class="cload-sum-card"><div class="stat-label">Primary</div><div class="stat-value">${grandPrimary}</div></div>
       <div class="cload-sum-card"><div class="stat-label">Secondary</div><div class="stat-value">${grandSecondary}</div></div>
       <div class="cload-sum-card"><div class="stat-label">Tertiary</div><div class="stat-value">${grandTertiary}</div></div>
+      <div class="cload-sum-card"><div class="stat-label">Low-cost</div><div class="stat-value">${grandLowcost}</div></div>
       <div class="cload-sum-card"><div class="stat-label">Total Sessions/wk</div><div class="stat-value">${grandSessions}</div></div>
     `;
   }
