@@ -281,7 +281,16 @@
   .disc-section-count { font-size: 12px; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
   .disc-section-icon { font-size: 18px; }
 
-  /* ── Working day pills ── */
+  /* ── Absent/On-leave therapist ── */
+  .sched-therapist-cell.absent { opacity: 0.45; }
+  .absent-badge { display:inline-block; padding:2px 7px; border-radius:20px; font-size:10px; font-weight:600; background:rgba(220,38,38,0.12); color:var(--red); border:1px solid rgba(220,38,38,0.3); margin-top:3px; }
+  .absent-toggle {
+    padding:3px 9px; font-size:11px; font-weight:600; border-radius:6px; border:1px solid var(--border);
+    background:none; color:var(--text-muted); cursor:pointer; transition:all 0.15s; white-space:nowrap;
+  }
+  .absent-toggle:hover { border-color:var(--red); color:var(--red); background:var(--red-light); }
+  .absent-toggle.active { background:rgba(220,38,38,0.1); border-color:var(--red); color:var(--red); }
+  .sched-day-cell.absent-day { background: repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.03) 6px,rgba(0,0,0,0.03) 12px); opacity:0.4; pointer-events:none; }
   .day-toggles { display:flex; gap:6px; flex-wrap:wrap; }
   .day-toggle {
     padding:5px 11px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;
@@ -1666,6 +1675,14 @@
   const DAY_FULL = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday' };
   const SLOT_CAP = 14;
 
+  // Absent therapist IDs — runtime only, not persisted
+  const absentIds = new Set();
+  function toggleAbsent(tid) {
+    if (absentIds.has(tid)) absentIds.delete(tid);
+    else absentIds.add(tid);
+    renderSchedule();
+  }
+
   let schedule = {};
 
   async function saveSchedule() {
@@ -1770,6 +1787,7 @@
     tbody.innerHTML = filtered.map(s => {
       ensureTherapistSlot(s.id);
       const dk        = s.discipline.toLowerCase();
+      const isAbsent  = absentIds.has(s.id);
       const usedSlots = getTherapistUsedSlots(s.id);
       const remSlots  = SLOT_CAP - usedSlots;
       const slotPct   = Math.min(100, Math.round((usedSlots / SLOT_CAP) * 100));
@@ -1780,9 +1798,8 @@
         const isWorkDay  = workDays.includes(day);
         const entries    = schedule[s.id][day] || [];
 
-        if (!isWorkDay) {
-          return `<td class="sched-day-cell off-day"></td>`;
-        }
+        if (!isWorkDay) return `<td class="sched-day-cell off-day"></td>`;
+        if (isAbsent)   return `<td class="sched-day-cell absent-day"></td>`;
 
         const slots = entries.map((e, idx) => {
           const pat = patients.find(p => p.id === e.patientId);
@@ -1839,22 +1856,34 @@
 
       return `
         <tr>
-          <td class="sched-therapist-cell">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <div class="sched-disc-bar ${dk}"></div>
+          <td class="sched-therapist-cell${isAbsent ? ' absent' : ''}">
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+              <div class="sched-disc-bar ${dk}" style="margin-top:4px;"></div>
               <div style="flex:1;min-width:0;">
-                <div class="sched-therapist-name">${esc(s.name)}</div>
-                <div class="sched-therapist-disc">${s.discipline}${s.gender ? ' · ' + (s.gender==='male'?'♂':'♀') : ''}</div>
-                <div style="margin-top:6px;">
-                  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:2px;">
-                    <span>Slots</span>
-                    <span style="color:${slotColor};font-weight:600;">${usedSlots}/${SLOT_CAP}</span>
-                  </div>
-                  <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
-                    <div style="height:100%;width:${slotPct}%;background:${slotColor};border-radius:3px;transition:width 0.3s;"></div>
-                  </div>
-                  ${usedSlots >= SLOT_CAP ? `<div style="font-size:10px;color:var(--red);margin-top:2px;font-weight:600;">Slot cap reached</div>` : `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${remSlots} slot${remSlots!==1?'s':''} remaining</div>`}
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                  <div class="sched-therapist-name">${esc(s.name)}</div>
+                  <button class="absent-toggle${isAbsent ? ' active' : ''}" data-action="toggle-absent" data-tid="${s.id}"
+                    title="${isAbsent ? 'Mark as present' : 'Mark as on leave'}">
+                    ${isAbsent ? '✓ On Leave' : '+ On Leave'}
+                  </button>
                 </div>
+                <div class="sched-therapist-disc">${s.discipline}${s.gender ? ' · ' + (s.gender==='male'?'♂':'♀') : ''}</div>
+                ${isAbsent
+                  ? `<div class="absent-badge">🚫 On Leave — sessions redirected to secondary</div>`
+                  : `<div style="margin-top:6px;">
+                      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:2px;">
+                        <span>Slots</span>
+                        <span style="color:${slotColor};font-weight:600;">${usedSlots}/${SLOT_CAP}</span>
+                      </div>
+                      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+                        <div style="height:100%;width:${slotPct}%;background:${slotColor};border-radius:3px;transition:width 0.3s;"></div>
+                      </div>
+                      ${usedSlots >= SLOT_CAP
+                        ? `<div style="font-size:10px;color:var(--red);margin-top:2px;font-weight:600;">Slot cap reached</div>`
+                        : `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${remSlots} slot${remSlots!==1?'s':''} remaining</div>`
+                      }
+                    </div>`
+                }
               </div>
             </div>
           </td>
@@ -1898,6 +1927,12 @@
     const workDays = therapist.workDays || ['mon','tue','wed','thu','fri'];
     if (!workDays.includes(pickerDay)) {
       list.innerHTML = `<div class="sched-picker-empty">${esc(therapist.name)} is off on ${DAY_FULL[pickerDay]}.</div>`;
+      return;
+    }
+
+    // Absent guard
+    if (absentIds.has(therapist.id)) {
+      list.innerHTML = `<div class="sched-picker-empty">${esc(therapist.name)} is marked on leave this week.</div>`;
       return;
     }
 
@@ -1991,19 +2026,15 @@
     schedule = {};
     staff.forEach(s => ensureTherapistSlot(s.id));
 
-    // patientDays[patientId] = Set of days this patient is already scheduled (any therapist)
     const patientDays = {};
-
     const workload = patients.filter(p => parseInt(p.freq) > 0);
 
-    // Helper: how many patients a therapist has on a given day (for load balancing)
     const dayLoad = (tid, day) => (schedule[tid]?.[day]||[]).length;
 
-    // Pick the lightest working day for a therapist that a patient hasn't been seen yet
     const pickLightestDay = (tid, patId) => {
-      const therapist  = staff.find(s => s.id === tid);
-      const workDays   = therapist?.workDays || DAYS;
-      const available  = workDays.filter(d => !patientDays[patId]?.has(d));
+      const therapist = staff.find(s => s.id === tid);
+      const workDays  = therapist?.workDays || DAYS;
+      const available = workDays.filter(d => !patientDays[patId]?.has(d));
       if (!available.length) return null;
       available.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || DAYS.indexOf(a) - DAYS.indexOf(b));
       return available[0];
@@ -2014,38 +2045,75 @@
       const freq = parseInt(pat.freq);
       const dist = calcSessions(freq, !!pat.primary, !!pat.secondary, !!pat.tertiary);
 
+      // Resolve therapist for each role — if primary is absent, fall back to secondary then tertiary
+      const resolveTherapist = (name) => {
+        if (!name) return null;
+        const t = staff.find(s => s.name === name);
+        if (!t) return null;
+        return absentIds.has(t.id) ? null : t;  // absent → caller handles fallback
+      };
+
+      const primaryT   = resolveTherapist(pat.primary);
+      const secondaryT = resolveTherapist(pat.secondary);
+      const tertiaryT  = resolveTherapist(pat.tertiary);
+
       const assignments = [];
-      if (pat.primary && dist.p > 0) {
-        const t = staff.find(s => s.name === pat.primary);
-        if (t) assignments.push({ tid: t.id, role: 'primary', need: dist.p });
+
+      // Primary sessions
+      if (dist.p > 0) {
+        if (primaryT) {
+          // Primary available — assign normally
+          assignments.push({ tid: primaryT.id, role: 'primary', need: dist.p });
+        } else if (secondaryT) {
+          // Primary absent — redirect to secondary
+          assignments.push({ tid: secondaryT.id, role: 'secondary', need: dist.p });
+        } else if (tertiaryT) {
+          // Both primary & secondary absent — redirect to tertiary
+          assignments.push({ tid: tertiaryT.id, role: 'tertiary', need: dist.p });
+        }
+        // All absent: patient gets no sessions (logged in console)
       }
-      if (pat.secondary && dist.s > 0) {
-        const t = staff.find(s => s.name === pat.secondary);
-        if (t) assignments.push({ tid: t.id, role: 'secondary', need: dist.s });
+
+      // Secondary sessions (only schedule if secondary is present and different from primary redirect)
+      if (dist.s > 0 && secondaryT) {
+        // Avoid double-assigning if secondary already absorbed primary sessions
+        const alreadyAbsorbedPrimary = !primaryT && secondaryT;
+        if (!alreadyAbsorbedPrimary) {
+          assignments.push({ tid: secondaryT.id, role: 'secondary', need: dist.s });
+        } else {
+          // Secondary absorbed primary — add secondary's own sessions on top if slots allow
+          assignments.push({ tid: secondaryT.id, role: 'secondary', need: dist.s });
+        }
       }
-      if (pat.tertiary && dist.t > 0) {
-        const t = staff.find(s => s.name === pat.tertiary);
-        if (t) assignments.push({ tid: t.id, role: 'tertiary', need: dist.t });
+
+      // Tertiary sessions
+      if (dist.t > 0 && tertiaryT) {
+        assignments.push({ tid: tertiaryT.id, role: 'tertiary', need: dist.t });
       }
-      if (!assignments.length && pat.insurance === 'Low-cost' && pat.primary) {
-        const t = staff.find(s => s.name === pat.primary);
+
+      // Low-cost fallback
+      if (!assignments.length && (pat.insurance === 'Low-cost' || pat.insurance === 'ABM') && pat.primary) {
+        const t = primaryT || secondaryT || tertiaryT;
         if (t) assignments.push({ tid: t.id, role: 'lowcost', need: freq });
       }
 
-      assignments.forEach(({ tid, role, need }) => {
+      // Deduplicate: merge sessions going to same therapist
+      const merged = {};
+      assignments.forEach(a => {
+        if (!merged[a.tid]) merged[a.tid] = { tid: a.tid, role: a.role, need: 0 };
+        merged[a.tid].need += a.need;
+      });
+
+      Object.values(merged).forEach(({ tid, role, need }) => {
         ensureTherapistSlot(tid);
         const weight = getSlotWeight(pat);
-
-        // Slot cap: only charge weight when first booking this patient under this therapist
         const alreadyBookedHere = DAYS.some(d => (schedule[tid][d]||[]).some(e => e.patientId === pat.id));
-        if (!alreadyBookedHere) {
-          if (getTherapistUsedSlots(tid) + weight > SLOT_CAP) return;
-        }
+        if (!alreadyBookedHere && getTherapistUsedSlots(tid) + weight > SLOT_CAP) return;
 
         let placed = 0;
         while (placed < need) {
           const day = pickLightestDay(tid, pat.id);
-          if (!day) break; // no valid days left
+          if (!day) break;
           schedule[tid][day].push({ patientId: pat.id, role });
           patientDays[pat.id].add(day);
           placed++;
@@ -2109,6 +2177,11 @@
   })();
 
   document.getElementById('sched-tbody').addEventListener('click', function(e) {
+    // Toggle absent
+    const absBtn = e.target.closest('[data-action="toggle-absent"]');
+    if (absBtn) { toggleAbsent(absBtn.dataset.tid); return; }
+
+    // Remove slot
     const rmBtn = e.target.closest('[data-action="remove-slot"]');
     if (rmBtn) {
       const { tid, day, idx } = rmBtn.dataset;
