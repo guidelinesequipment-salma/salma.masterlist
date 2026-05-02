@@ -1710,67 +1710,113 @@
     const absentTherapist = staff.find(s => s.id === tid);
     if (!absentTherapist) return;
 
-    // Get patients scheduled for this therapist on this day
     const entries = [...(schedule[tid]?.[day] || [])];
     if (!entries.length) { showToast('No patients to redistribute for this day.'); return; }
 
     // Remove all slots for this therapist on this day
     schedule[tid][day] = [];
 
-    const isFemalePatient = pat => pat.gender === 'female';
+    // ── Insurance priority order for redistribution ──
+    const insurancePriority = cat => {
+      if (cat === 'PAR')      return 1;
+      if (cat === 'SSR')      return 2;
+      if (cat === 'LTC')      return 3;
+      if (cat === 'Low-cost') return 4;
+      if (cat === 'ABM')      return 4;
+      return 5;
+    };
 
-    // For each displaced patient, find best substitute for this day only
-    entries.forEach(e => {
-      const pat = patients.find(p => p.id === e.patientId);
-      if (!pat) return;
-
-      // Already seen today by someone else (from a previous iteration)?
-      const alreadyScheduledToday = DAYS.filter(d => d === day).some(() =>
-        Object.entries(schedule).some(([othTid, days]) =>
-          othTid !== tid && (days[day]||[]).some(slot => slot.patientId === pat.id)
-        )
+    // Sort entries by priority (PAR first, Low-cost last)
+    const sorted = entries
+      .map(e => ({ e, pat: patients.find(p => p.id === e.patientId) }))
+      .filter(({ pat }) => !!pat)
+      .sort((a, b) =>
+        insurancePriority(a.pat.category || a.pat.insurance) -
+        insurancePriority(b.pat.category || b.pat.insurance)
       );
-      if (alreadyScheduledToday) return; // rule: max 1 session per patient per day
 
-      // Find best substitute for this specific day
-      const prefDisc = absentTherapist.discipline;
+    // Days available for forward-only redistribution overflow
+    // (the absent day itself + days AFTER it in the week)
+    const absentDayIdx    = DAYS.indexOf(day);
+    const forwardDays     = DAYS.slice(absentDayIdx + 1); // days strictly after absent day
+
+    const prefDisc = absentTherapist.discipline;
+
+    // Find best substitute for a specific target day
+    const findSubForDay = (pat, targetDay) => {
       const candidates = staff.filter(sub => {
-        if (sub.id === tid) return false;                          // not the absent therapist
-        if (absentIds.has(sub.id)) return false;                  // not on full-week leave
-        if (isTherapistAbsentOnDay(sub.id, day)) return false;    // not absent this day
-        if (sub.discipline === 'SLP') return false;               // never redistribute to SLP
-        if (isFemalePatient(pat) && sub.gender === 'male') return false; // gender rule
-        // Must work on this day
+        if (sub.id === tid) return false;
+        if (absentIds.has(sub.id)) return false;
+        if (isTherapistAbsentOnDay(sub.id, targetDay)) return false;
+        if (sub.discipline === 'SLP') return false;
+        if (pat.gender === 'female' && sub.gender === 'male') return false;
         const workDays = sub.workDays || DAYS;
-        if (!workDays.includes(day)) return false;
-        // Must not already have this patient today
-        if ((schedule[sub.id]?.[day]||[]).some(slot => slot.patientId === pat.id)) return false;
-        // Slot cap: check if adding this patient would exceed cap
-        const alreadyBookedWithSub = DAYS.some(d => (schedule[sub.id]?.[d]||[]).some(sl => sl.patientId === pat.id));
-        if (!alreadyBookedWithSub) {
-          if (getTherapistUsedSlots(sub.id) + getSlotWeight(pat) > SLOT_CAP) return false;
-        }
+        if (!workDays.includes(targetDay)) return false;
+        // Patient must not already be seen on this day
+        if ((schedule[sub.id]?.[targetDay]||[]).some(sl => sl.patientId === pat.id)) return false;
+        // Patient not already seen that day by anyone
+        if (Object.values(schedule).some(s => (s[targetDay]||[]).some(sl => sl.patientId === pat.id))) return false;
+        // Slot cap
+        const alreadyBooked = DAYS.some(d => (schedule[sub.id]?.[d]||[]).some(sl => sl.patientId === pat.id));
+        if (!alreadyBooked && getTherapistUsedSlots(sub.id) + getSlotWeight(pat) > SLOT_CAP) return false;
         return true;
       });
-
-      if (!candidates.length) return; // no valid substitute — patient skipped
-
-      // Sort: prefer same discipline, then fewest slots used
+      if (!candidates.length) return null;
       candidates.sort((a, b) => {
         const ap = a.discipline === prefDisc ? 0 : 1;
         const bp = b.discipline === prefDisc ? 0 : 1;
         if (ap !== bp) return ap - bp;
         return getTherapistUsedSlots(a.id) - getTherapistUsedSlots(b.id);
       });
+      return candidates[0];
+    };
 
-      const sub = candidates[0];
-      ensureTherapistSlot(sub.id);
-      schedule[sub.id][day].push({ patientId: pat.id, role: e.role || 'primary' });
+    let placed = 0, forwarded = 0;
+
+    sorted.forEach(({ e, pat }) => {
+      // Rule: patient must not already be scheduled by someone on the absent day
+      const alreadyToday = Object.entries(schedule).some(([othTid, days]) =>
+        othTid !== tid && (days[day]||[]).some(sl => sl.patientId === pat.id)
+      );
+      if (alreadyToday) { placed++; return; }
+
+      // 1. Try to place on the absent day with a substitute
+      const sub = findSubForDay(pat, day);
+      if (sub) {
+        ensureTherapistSlot(sub.id);
+        schedule[sub.id][day].push({ patientId: pat.id, role: e.role || 'primary' });
+        placed++;
+        return;
+      }
+
+      // 2. All substitutes at capacity for this day — try forward days only
+      for (const fwdDay of forwardDays) {
+        // Patient must not already be seen on this forward day
+        const patAlreadyOnFwdDay = Object.values(schedule).some(s =>
+          (s[fwdDay]||[]).some(sl => sl.patientId === pat.id)
+        );
+        if (patAlreadyOnFwdDay) continue;
+
+        // Find a substitute who works that forward day and has capacity
+        const fwdSub = findSubForDay(pat, fwdDay);
+        if (fwdSub) {
+          ensureTherapistSlot(fwdSub.id);
+          schedule[fwdSub.id][fwdDay].push({ patientId: pat.id, role: e.role || 'primary' });
+          forwarded++;
+          placed++;
+          return;
+        }
+      }
+      // Could not place anywhere — skipped (no capacity in week)
     });
 
     await saveSchedule();
     renderSchedule();
-    showToast(`Redistributed ${entries.length} patient${entries.length > 1 ? 's' : ''} from ${absentTherapist.name}'s ${DAY_FULL[day]} schedule.`);
+
+    const msg = forwarded > 0
+      ? `Redistributed ${placed} patient${placed>1?'s':''} from ${absentTherapist.name}'s ${DAY_FULL[day]}. (${forwarded} moved to a later day)`
+      : `Redistributed ${placed} patient${placed>1?'s':''} from ${absentTherapist.name}'s ${DAY_FULL[day]}.`;
+    showToast(msg, 5000);
   }
 
   let schedule = {};
