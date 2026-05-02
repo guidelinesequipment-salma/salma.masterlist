@@ -838,9 +838,6 @@
   async function saveStaffRow(s) { await sbUpsert('staff', staffToRow(s)); }
   async function deleteStaffRow(id) { await sbDelete('staff', id); }
 
-  // Legacy save() kept as no-op (Supabase writes happen inline now)
-  function save() {}
-
   // ── Loading spinner (non-blocking) ──
   function showLoader(msg) {
     const el = document.getElementById('app-loader');
@@ -1181,7 +1178,6 @@
     if (!list.length) { sections.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
 
-    const dBadge = d => `<span class="badge badge-${d.toLowerCase()}">${d}</span>`;
     const ini    = n => n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
 
     const renderCard = s => {
@@ -1274,7 +1270,6 @@
   function scoreTherapist(therapist, patientGender, patientCategory, patientInsurance) {
     const tags = [];
     let score  = 0;
-    let eligible = true;
 
     const usedSlots    = getTherapistCaseloadSlots(therapist);
     const patientCount = getTherapistPatientCount_primary(therapist);
@@ -1333,7 +1328,7 @@
       else                     tags.push({ label: `${heavyCat} SSR/PAR (many)`, cls: 'caution' });
     }
 
-    return { therapist, score, tags, usedSlots, patientCount, eligible };
+    return { therapist, score, tags, usedSlots, patientCount };
   }
 
   function updateRecommendations() {
@@ -1377,7 +1372,7 @@
       const rm = rankMeta[i];
       const dc = discColors[t.discipline] || 'var(--text-muted)';
       return `
-        <div class="rec-item" onclick="assignRecommended('${t.name}')">
+        <div class="rec-item" data-rec-name="${esc(t.name)}">
           <div class="rec-rank ${rm.cls}">${rm.emoji}</div>
           <div style="flex:1;min-width:0;">
             <div class="rec-name">${esc(t.name)}</div>
@@ -1387,7 +1382,7 @@
           <div class="rec-slots">
             <strong>${patientCount}</strong>patients
           </div>
-          <button class="rec-assign-btn" onclick="event.stopPropagation();assignRecommended('${t.name}')">Assign Primary</button>
+          <button class="rec-assign-btn" data-rec-name="${esc(t.name)}">Assign Primary</button>
         </div>`;
     }).join('') + (top3.length === 0
       ? '<div class="rec-empty">No eligible therapists found.</div>'
@@ -1547,10 +1542,20 @@
     }
     closeStaffModal(); renderStaff();
   }
-  async function deleteStaff(id) {
-    if (!confirm('Remove this staff member?')) return;
-    await deleteStaffRow(id);
-    staff = staff.filter(s=>s.id!==id);
+  let pendingDeleteStaffId = null;
+  function deleteStaff(id) {
+    const s = staff.find(x => x.id === id);
+    if (!s) return;
+    pendingDeleteStaffId = id;
+    openSchedConfirm('🗑️', 'Remove Staff Member',
+      `Remove ${s.name} from the directory? This cannot be undone.`,
+      'Remove', _confirmDeleteStaff);
+  }
+  async function _confirmDeleteStaff() {
+    if (!pendingDeleteStaffId) return;
+    await deleteStaffRow(pendingDeleteStaffId);
+    staff = staff.filter(s => s.id !== pendingDeleteStaffId);
+    pendingDeleteStaffId = null;
     renderStaff();
   }
 
@@ -1574,6 +1579,12 @@
     const isOpen = body.classList.toggle('open');
     chev.classList.toggle('open', isOpen);
   }
+
+  document.getElementById('rec-list').addEventListener('click', function(e) {
+    const btn  = e.target.closest('[data-rec-name]');
+    if (!btn) return;
+    assignRecommended(btn.dataset.recName);
+  });
 
   document.getElementById('sf-workdays').addEventListener('click', function(e) {
     const btn = e.target.closest('.day-toggle');
@@ -1619,18 +1630,19 @@
   // ══════════════════════════════════════════
   const DAYS     = ['mon','tue','wed','thu','fri'];
   const DAY_FULL = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday' };
+  const SLOT_CAP = 14;
 
   let schedule = {};
 
   async function saveSchedule() {
-    // Rebuild all schedule_slots for current schedule object
-    // Delete all existing slots then re-insert (simplest approach for weekly schedule)
     await fetch(`${SUPA_URL}/rest/v1/schedule_slots?id=neq.null`, { method: 'DELETE', headers: HEADERS });
     const rows = [];
     Object.entries(schedule).forEach(([tid, days]) => {
       DAYS.forEach(day => {
         (days[day] || []).forEach((e, idx) => {
-          rows.push({ id: tid + '_' + day + '_' + idx + '_' + e.patientId, therapist_id: tid, patient_id: e.patientId, day, role: e.role || '' });
+          // Use base36 index to avoid any separator collisions
+          const rowId = `${tid}|${day}|${idx.toString(36)}|${e.patientId}`;
+          rows.push({ id: rowId, therapist_id: tid, patient_id: e.patientId, day, role: e.role || '' });
         });
       });
     });
@@ -1646,8 +1658,6 @@
   function ensureTherapistSlot(tid) {
     if (!schedule[tid]) schedule[tid] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
   }
-
-  const SLOT_CAP = 14;
 
   // All patient IDs scheduled on a given day across ALL therapists
   function getPatientDaySet(day) {
