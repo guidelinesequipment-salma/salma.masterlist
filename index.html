@@ -2026,18 +2026,70 @@
     schedule = {};
     staff.forEach(s => ensureTherapistSlot(s.id));
 
-    const patientDays = {};
+    const patientDays = {};   // patientId → Set of days already scheduled
     const workload = patients.filter(p => parseInt(p.freq) > 0);
 
     const dayLoad = (tid, day) => (schedule[tid]?.[day]||[]).length;
 
+    // Pick the lightest available working day for a therapist this patient hasn't been seen on
     const pickLightestDay = (tid, patId) => {
-      const therapist = staff.find(s => s.id === tid);
-      const workDays  = therapist?.workDays || DAYS;
+      const t = staff.find(s => s.id === tid);
+      const workDays = t?.workDays || DAYS;
       const available = workDays.filter(d => !patientDays[patId]?.has(d));
       if (!available.length) return null;
       available.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || DAYS.indexOf(a) - DAYS.indexOf(b));
       return available[0];
+    };
+
+    // Is a therapist available (not absent, not at slot cap for this patient)?
+    const isAvailable = (t, pat) => {
+      if (!t) return false;
+      if (absentIds.has(t.id)) return false;
+      const alreadyBooked = DAYS.some(d => (schedule[t.id][d]||[]).some(e => e.patientId === pat.id));
+      const slots = getTherapistUsedSlots(t.id);
+      if (!alreadyBooked && slots + getSlotWeight(pat) > SLOT_CAP) return false;
+      return true;
+    };
+
+    // Find the best substitute therapist for unplaced sessions:
+    //   - Not absent, not SLP, has remaining slot capacity
+    //   - Prefer same discipline as the original therapist
+    //   - Sort by fewest used slots (least loaded first)
+    const findSubstitute = (pat, preferDiscipline) => {
+      const candidates = staff.filter(sub => {
+        if (absentIds.has(sub.id)) return false;
+        if (sub.discipline === 'SLP') return false;            // rule: never redistribute to SLP
+        if (!isAvailable(sub, pat)) return false;
+        // Don't pick the patient's own primary/secondary/tertiary (they're already handled)
+        if (sub.name === pat.primary || sub.name === pat.secondary || sub.name === pat.tertiary) return false;
+        return true;
+      });
+      if (!candidates.length) return null;
+      // Prefer same discipline, then sort by slot load ascending
+      candidates.sort((a, b) => {
+        const aPref = a.discipline === preferDiscipline ? 0 : 1;
+        const bPref = b.discipline === preferDiscipline ? 0 : 1;
+        if (aPref !== bPref) return aPref - bPref;
+        return getTherapistUsedSlots(a.id) - getTherapistUsedSlots(b.id);
+      });
+      return candidates[0];
+    };
+
+    // Place `need` sessions of a patient under a therapist, return how many were placed
+    const placeSessions = (tid, pat, role, need) => {
+      ensureTherapistSlot(tid);
+      const weight = getSlotWeight(pat);
+      const alreadyBooked = DAYS.some(d => (schedule[tid][d]||[]).some(e => e.patientId === pat.id));
+      if (!alreadyBooked && getTherapistUsedSlots(tid) + weight > SLOT_CAP) return 0;
+      let placed = 0;
+      while (placed < need) {
+        const day = pickLightestDay(tid, pat.id);
+        if (!day) break;
+        schedule[tid][day].push({ patientId: pat.id, role });
+        patientDays[pat.id].add(day);
+        placed++;
+      }
+      return placed;
     };
 
     workload.forEach(pat => {
@@ -2045,80 +2097,77 @@
       const freq = parseInt(pat.freq);
       const dist = calcSessions(freq, !!pat.primary, !!pat.secondary, !!pat.tertiary);
 
-      // Resolve therapist for each role — if primary is absent, fall back to secondary then tertiary
-      const resolveTherapist = (name) => {
-        if (!name) return null;
-        const t = staff.find(s => s.name === name);
-        if (!t) return null;
-        return absentIds.has(t.id) ? null : t;  // absent → caller handles fallback
-      };
+      const primaryT   = pat.primary   ? staff.find(s => s.name === pat.primary)   : null;
+      const secondaryT = pat.secondary ? staff.find(s => s.name === pat.secondary) : null;
+      const tertiaryT  = pat.tertiary  ? staff.find(s => s.name === pat.tertiary)  : null;
 
-      const primaryT   = resolveTherapist(pat.primary);
-      const secondaryT = resolveTherapist(pat.secondary);
-      const tertiaryT  = resolveTherapist(pat.tertiary);
+      const primaryAvail   = isAvailable(primaryT, pat);
+      const secondaryAvail = isAvailable(secondaryT, pat);
+      const tertiaryAvail  = isAvailable(tertiaryT, pat);
 
-      const assignments = [];
+      const prefDisc = primaryT?.discipline || secondaryT?.discipline || 'PT';
 
-      // Primary sessions
+      // ── Handle Primary sessions ──
       if (dist.p > 0) {
-        if (primaryT) {
-          // Primary available — assign normally
-          assignments.push({ tid: primaryT.id, role: 'primary', need: dist.p });
-        } else if (secondaryT) {
-          // Primary absent — redirect to secondary
-          assignments.push({ tid: secondaryT.id, role: 'secondary', need: dist.p });
-        } else if (tertiaryT) {
-          // Both primary & secondary absent — redirect to tertiary
-          assignments.push({ tid: tertiaryT.id, role: 'tertiary', need: dist.p });
+        let unplaced = dist.p;
+        if (primaryAvail) {
+          // Primary present → assign their sessions
+          unplaced -= placeSessions(primaryT.id, pat, 'primary', dist.p);
+        } else if (secondaryAvail) {
+          // Rule: primary absent → use secondary for primary's sessions
+          unplaced -= placeSessions(secondaryT.id, pat, 'secondary', dist.p);
+        } else if (tertiaryAvail) {
+          // Secondary also absent → use tertiary
+          unplaced -= placeSessions(tertiaryT.id, pat, 'tertiary', dist.p);
         }
-        // All absent: patient gets no sessions (logged in console)
-      }
-
-      // Secondary sessions (only schedule if secondary is present and different from primary redirect)
-      if (dist.s > 0 && secondaryT) {
-        // Avoid double-assigning if secondary already absorbed primary sessions
-        const alreadyAbsorbedPrimary = !primaryT && secondaryT;
-        if (!alreadyAbsorbedPrimary) {
-          assignments.push({ tid: secondaryT.id, role: 'secondary', need: dist.s });
-        } else {
-          // Secondary absorbed primary — add secondary's own sessions on top if slots allow
-          assignments.push({ tid: secondaryT.id, role: 'secondary', need: dist.s });
+        // Still unplaced (all absent or overloaded) → redistribute to any available non-SLP
+        if (unplaced > 0) {
+          const sub = findSubstitute(pat, prefDisc);
+          if (sub) placeSessions(sub.id, pat, 'primary', unplaced);
         }
       }
 
-      // Tertiary sessions
-      if (dist.t > 0 && tertiaryT) {
-        assignments.push({ tid: tertiaryT.id, role: 'tertiary', need: dist.t });
-      }
-
-      // Low-cost fallback
-      if (!assignments.length && (pat.insurance === 'Low-cost' || pat.insurance === 'ABM') && pat.primary) {
-        const t = primaryT || secondaryT || tertiaryT;
-        if (t) assignments.push({ tid: t.id, role: 'lowcost', need: freq });
-      }
-
-      // Deduplicate: merge sessions going to same therapist
-      const merged = {};
-      assignments.forEach(a => {
-        if (!merged[a.tid]) merged[a.tid] = { tid: a.tid, role: a.role, need: 0 };
-        merged[a.tid].need += a.need;
-      });
-
-      Object.values(merged).forEach(({ tid, role, need }) => {
-        ensureTherapistSlot(tid);
-        const weight = getSlotWeight(pat);
-        const alreadyBookedHere = DAYS.some(d => (schedule[tid][d]||[]).some(e => e.patientId === pat.id));
-        if (!alreadyBookedHere && getTherapistUsedSlots(tid) + weight > SLOT_CAP) return;
-
-        let placed = 0;
-        while (placed < need) {
-          const day = pickLightestDay(tid, pat.id);
-          if (!day) break;
-          schedule[tid][day].push({ patientId: pat.id, role });
-          patientDays[pat.id].add(day);
-          placed++;
+      // ── Handle Secondary sessions ──
+      if (dist.s > 0) {
+        let unplaced = dist.s;
+        if (secondaryAvail) {
+          // Secondary present → assign their sessions
+          unplaced -= placeSessions(secondaryT.id, pat, 'secondary', dist.s);
+        } else if (primaryAvail) {
+          // Rule: secondary absent → fall back to primary for secondary's sessions
+          unplaced -= placeSessions(primaryT.id, pat, 'primary', dist.s);
+        } else if (tertiaryAvail) {
+          unplaced -= placeSessions(tertiaryT.id, pat, 'tertiary', dist.s);
         }
-      });
+        // Still unplaced → redistribute to any available non-SLP
+        if (unplaced > 0) {
+          const sub = findSubstitute(pat, prefDisc);
+          if (sub) placeSessions(sub.id, pat, 'secondary', unplaced);
+        }
+      }
+
+      // ── Handle Tertiary sessions ──
+      if (dist.t > 0) {
+        let unplaced = dist.t;
+        if (tertiaryAvail) {
+          unplaced -= placeSessions(tertiaryT.id, pat, 'tertiary', dist.t);
+        } else if (primaryAvail) {
+          unplaced -= placeSessions(primaryT.id, pat, 'primary', dist.t);
+        } else if (secondaryAvail) {
+          unplaced -= placeSessions(secondaryT.id, pat, 'secondary', dist.t);
+        }
+        if (unplaced > 0) {
+          const sub = findSubstitute(pat, prefDisc);
+          if (sub) placeSessions(sub.id, pat, 'tertiary', unplaced);
+        }
+      }
+
+      // ── Low-cost / ABM fallback (no role assignments at all) ──
+      if (dist.p === 0 && dist.s === 0 && dist.t === 0 &&
+          (pat.insurance === 'Low-cost' || pat.insurance === 'ABM')) {
+        const t = [primaryT, secondaryT, tertiaryT].find(x => isAvailable(x, pat));
+        if (t) placeSessions(t.id, pat, 'lowcost', freq);
+      }
     });
 
     await saveSchedule();
