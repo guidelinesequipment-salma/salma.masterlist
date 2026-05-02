@@ -765,10 +765,12 @@
 </div>
 
 <!-- ═══ LOADING OVERLAY ═══ -->
-<div id="app-loader" style="display:none;position:fixed;inset:0;background:var(--modal-overlay);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+<div id="app-loader" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:14px;pointer-events:none;">
   <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
   <div id="app-loader-msg" style="color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;">Loading…</div>
 </div>
+<!-- Toast for non-blocking errors -->
+<div id="app-toast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:12px 20px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13.5px;z-index:600;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:90vw;text-align:center;"></div>
 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 
 <script>
@@ -839,12 +841,21 @@
   // Legacy save() kept as no-op (Supabase writes happen inline now)
   function save() {}
 
-  // ── Loading spinner ──
+  // ── Loading spinner (non-blocking) ──
   function showLoader(msg) {
-    document.getElementById('app-loader').style.display = 'flex';
+    const el = document.getElementById('app-loader');
+    el.style.display = 'flex';
     document.getElementById('app-loader-msg').textContent = msg || 'Loading…';
   }
-  function hideLoader() { document.getElementById('app-loader').style.display = 'none'; }
+  function hideLoader() {
+    document.getElementById('app-loader').style.display = 'none';
+  }
+  function showToast(msg, duration) {
+    const t = document.getElementById('app-toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, duration || 4000);
+  }
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -2042,14 +2053,14 @@
         schedule[r.therapist_id][r.day].push({ patientId: r.patient_id, role: r.role });
       });
 
+    } catch(err) {
+      console.error('Supabase load error:', err);
+      showToast('⚠️ Could not connect to database. Working offline.');
+    } finally {
+      // Always hide loader and render — app works even without Supabase
       hideLoader();
       renderPatients();
       renderStaff();
-    } catch(err) {
-      hideLoader();
-      document.getElementById('app-loader-msg').textContent = 'Failed to connect. Check your internet connection.';
-      document.getElementById('app-loader').style.display = 'flex';
-      console.error('Supabase load error:', err);
     }
   })();
 
