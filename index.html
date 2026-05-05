@@ -1749,13 +1749,8 @@
         if (pat.gender === 'female' && sub.gender === 'male') return false;
         const workDays = sub.workDays || DAYS;
         if (!workDays.includes(targetDay)) return false;
-        // Patient must not already be seen on this day
         if ((schedule[sub.id]?.[targetDay]||[]).some(sl => sl.patientId === pat.id)) return false;
-        // Patient not already seen that day by anyone
         if (Object.values(schedule).some(s => (s[targetDay]||[]).some(sl => sl.patientId === pat.id))) return false;
-        // Slot cap
-        const alreadyBooked = DAYS.some(d => (schedule[sub.id]?.[d]||[]).some(sl => sl.patientId === pat.id));
-        if (!alreadyBooked && getTherapistUsedSlots(sub.id) + getSlotWeight(pat) > SLOT_CAP) return false;
         return true;
       });
       if (!candidates.length) return null;
@@ -1861,8 +1856,16 @@
     return 1;
   }
 
-  // Total slot weight used by a therapist across all their unique patients this week
-  // Each patient is counted once (by their slot weight), regardless of how many sessions
+  // Slot weight used by a therapist on a SPECIFIC DAY (sum of all patients' weights that day)
+  function getTherapistDaySlots(tid, day) {
+    if (!schedule[tid]) return 0;
+    return (schedule[tid][day] || []).reduce((total, e) => {
+      const pat = patients.find(p => p.id === e.patientId);
+      return total + (pat ? getSlotWeight(pat) : 0);
+    }, 0);
+  }
+
+  // Total slot weight used by a therapist across the whole week (for recommendation engine only)
   function getTherapistUsedSlots(tid) {
     if (!schedule[tid]) return 0;
     const seen = new Set();
@@ -1920,12 +1923,8 @@
 
     tbody.innerHTML = filtered.map(s => {
       ensureTherapistSlot(s.id);
-      const dk        = s.discipline.toLowerCase();
-      const isAbsent  = absentIds.has(s.id);
-      const usedSlots = getTherapistUsedSlots(s.id);
-      const remSlots  = SLOT_CAP - usedSlots;
-      const slotPct   = Math.min(100, Math.round((usedSlots / SLOT_CAP) * 100));
-      const slotColor = usedSlots >= SLOT_CAP ? 'var(--red)' : usedSlots >= 12 ? '#d97706' : 'var(--accent)';
+      const dk       = s.discipline.toLowerCase();
+      const isAbsent = absentIds.has(s.id);
 
       const dayCells = DAYS.map(day => {
         const workDays    = s.workDays || ['mon','tue','wed','thu','fri'];
@@ -1950,6 +1949,12 @@
               </button>
             </td>`;
         }
+
+        // ── Daily slot meter ──
+        const daySlots  = getTherapistDaySlots(s.id, day);
+        const isOverCap = daySlots > SLOT_CAP;
+        const slotPct   = Math.min(100, Math.round((daySlots / SLOT_CAP) * 100));
+        const slotColor = isOverCap ? 'var(--red)' : daySlots >= 12 ? '#d97706' : 'var(--accent)';
 
         const slots = entries.map((e, idx) => {
           const pat = patients.find(p => p.id === e.patientId);
@@ -1977,23 +1982,24 @@
             </div>`;
         }).join('');
 
-        const capReached = usedSlots >= SLOT_CAP;
-        const canAdd = !capReached && !isAbsent && patients.some(p => {
+        // Always show Add button (no hard cap block — manual booking is always allowed)
+        const canAdd = !isAbsent && patients.some(p => {
           if (!parseInt(p.freq)) return false;
-          const assigned = p.primary===s.name || p.secondary===s.name || p.tertiary===s.name;
-          if (!assigned) return false;
-          const allowed = getAllowedSessions(s, p);
-          const used    = getTherapistPatientCount(s.id, p.id);
-          if (used >= allowed) return false;
-          const alreadyBooked = DAYS.some(d => (schedule[s.id][d]||[]).some(e => e.patientId === p.id));
-          const wouldAdd = alreadyBooked ? 0 : getSlotWeight(p);
-          return (usedSlots + wouldAdd) <= SLOT_CAP;
+          return p.primary===s.name || p.secondary===s.name || p.tertiary===s.name;
         });
 
         return `
           <td class="sched-day-cell">
-            <div style="display:flex;justify-content:flex-end;margin-bottom:3px;">
-              <button class="day-toggle-absent" data-action="toggle-day-absent" data-tid="${s.id}" data-day="${day}" title="Mark absent this day">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:4px;">
+              <div style="flex:1;">
+                <div style="display:flex;justify-content:space-between;font-size:9.5px;color:${slotColor};font-weight:600;margin-bottom:2px;">
+                  <span>Slots</span><span>${daySlots.toFixed(daySlots % 1 ? 1 : 0)}/${SLOT_CAP}${isOverCap ? ' ⚠' : ''}</span>
+                </div>
+                <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;">
+                  <div style="height:100%;width:${slotPct}%;background:${slotColor};border-radius:2px;transition:width 0.2s;"></div>
+                </div>
+              </div>
+              <button class="day-toggle-absent" data-action="toggle-day-absent" data-tid="${s.id}" data-day="${day}" title="Mark absent this day" style="flex-shrink:0;">
                 Absent
               </button>
             </div>
@@ -2017,22 +2023,7 @@
                   </button>
                 </div>
                 <div class="sched-therapist-disc">${s.discipline}${s.gender ? ' · ' + (s.gender==='male'?'♂':'♀') : ''}</div>
-                ${isAbsent
-                  ? `<div class="absent-badge">🚫 On Leave — sessions redirected to secondary</div>`
-                  : `<div style="margin-top:6px;">
-                      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:2px;">
-                        <span>Slots</span>
-                        <span style="color:${slotColor};font-weight:600;">${usedSlots}/${SLOT_CAP}</span>
-                      </div>
-                      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
-                        <div style="height:100%;width:${slotPct}%;background:${slotColor};border-radius:3px;transition:width 0.3s;"></div>
-                      </div>
-                      ${usedSlots >= SLOT_CAP
-                        ? `<div style="font-size:10px;color:var(--red);margin-top:2px;font-weight:600;">Slot cap reached</div>`
-                        : `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${remSlots} slot${remSlots!==1?'s':''} remaining</div>`
-                      }
-                    </div>`
-                }
+                ${isAbsent ? `<div class="absent-badge">🚫 On Leave — sessions redirected to secondary</div>` : ''}
               </div>
             </div>
           </td>
@@ -2095,7 +2086,7 @@
 
     const dayPatients = new Set((schedule[pickerTid]?.[pickerDay]||[]).map(e => e.patientId));
     const busyToday   = getPatientDaySet(pickerDay);
-    const usedSlots   = getTherapistUsedSlots(pickerTid);
+    const daySlots    = getTherapistDaySlots(pickerTid, pickerDay);
 
     const filtered = eligible.filter(p =>
       (p.name||'').toLowerCase().includes(q)
@@ -2112,18 +2103,18 @@
       const alreadyHere   = dayPatients.has(p.id);
       const busyElsewhere = !alreadyHere && busyToday.has(p.id);
       const sessMaxed     = used >= allowed;
-      // Slot cap: new patient costs getSlotWeight slots; already-booked patient costs 0 extra
-      const alreadyBooked = DAYS.some(d => (schedule[pickerTid]?.[d]||[]).some(e => e.patientId === p.id));
-      const slotCost      = alreadyBooked ? 0 : getSlotWeight(p);
-      const slotMaxed     = !alreadyBooked && (usedSlots + slotCost) > SLOT_CAP;
-      const disabled      = alreadyHere || busyElsewhere || sessMaxed || slotMaxed;
+      // Only disable if patient is already here, busy, or sessions maxed
+      // Slot cap no longer blocks — it's informational only
+      const disabled      = alreadyHere || busyElsewhere || sessMaxed;
       const role          = getPatientRole(therapist, p);
+      const slotCost      = getSlotWeight(p);
+      const wouldExceed   = (daySlots + slotCost) > SLOT_CAP;
 
       let hint = '';
       if (alreadyHere)        hint = ' · already here';
       else if (busyElsewhere) hint = ' · busy today';
       else if (sessMaxed)     hint = ` · sessions maxed (${used}/${allowed})`;
-      else if (slotMaxed)     hint = ` · slot cap full (${usedSlots}/${SLOT_CAP}, costs ${slotCost})`;
+      else if (wouldExceed)   hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${SLOT_CAP})`;
       else                    hint = ` · ${used}/${allowed} sessions`;
 
       const cat      = (p.category||'').toLowerCase().replace(/[^a-z]/g,'');
@@ -2140,7 +2131,7 @@
           <span class="role-pill ${role}" style="flex-shrink:0;">${role.charAt(0).toUpperCase()+role.slice(1)}</span>
           ${catDot}
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(p.name)}</span>
-          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${hint}</span>
+          <span style="font-size:11px;color:${wouldExceed && !disabled ? 'var(--red)' : 'var(--text-muted)'};white-space:nowrap;">${hint}</span>
         </div>`;
     }).join('');
   }
@@ -2193,17 +2184,15 @@
       return available[0];
     };
 
-    // Is a therapist available for the whole week (not on full leave, not at slot cap)?
+    // Is a therapist available for scheduling a patient?
+    // Slot cap is now per-day (checked during placement), not a weekly hard block here.
+    // Only blocks if fully on leave or has no available working days.
     const isAvailable = (t, pat) => {
       if (!t) return false;
       if (absentIds.has(t.id)) return false;
-      // Check if they have at least one working day they're not absent on
       const workDays = t.workDays || DAYS;
       const hasAvailableDay = workDays.some(d => !isTherapistAbsentOnDay(t.id, d));
       if (!hasAvailableDay) return false;
-      const alreadyBooked = DAYS.some(d => (schedule[t.id][d]||[]).some(e => e.patientId === pat.id));
-      const slots = getTherapistUsedSlots(t.id);
-      if (!alreadyBooked && slots + getSlotWeight(pat) > SLOT_CAP) return false;
       return true;
     };
 
@@ -2219,7 +2208,6 @@
         if (sub.discipline === 'SLP') return false;
         if (!isAvailable(sub, pat)) return false;
         if (sub.name === pat.primary || sub.name === pat.secondary || sub.name === pat.tertiary) return false;
-        // Female patients cannot be redistributed to male therapists
         if (isFemalePatient && sub.gender === 'male') return false;
         return true;
       });
@@ -2237,9 +2225,6 @@
     // Place `need` sessions of a patient under a therapist, return how many were placed
     const placeSessions = (tid, pat, role, need) => {
       ensureTherapistSlot(tid);
-      const weight = getSlotWeight(pat);
-      const alreadyBooked = DAYS.some(d => (schedule[tid][d]||[]).some(e => e.patientId === pat.id));
-      if (!alreadyBooked && getTherapistUsedSlots(tid) + weight > SLOT_CAP) return 0;
       let placed = 0;
       while (placed < need) {
         const day = pickLightestDay(tid, pat.id);
@@ -2427,11 +2412,6 @@
     const allowed = getAllowedSessions(therapist, patient);
     const used    = getTherapistPatientCount(pickerTid, pid);
     if (used >= allowed) return;
-    const alreadyBooked = DAYS.some(d => (schedule[pickerTid]?.[d]||[]).some(e => e.patientId === pid));
-    if (!alreadyBooked) {
-      const usedSlots = getTherapistUsedSlots(pickerTid);
-      if (usedSlots + getSlotWeight(patient) > SLOT_CAP) return;
-    }
 
     schedule[pickerTid][pickerDay].push({ patientId: pid, role });
     saveSchedule().then(() => { closePicker(); renderSchedule(); });
