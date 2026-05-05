@@ -1,13 +1,11 @@
-const CACHE_NAME = 'rehab-masterlist-v1';
+const CACHE_NAME = 'rehab-masterlist-v2';
 
-// App shell files to cache for offline use
+// App shell files to pre-cache (non-HTML only)
 const SHELL = [
-  './',
-  './index.html',
   'https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap',
 ];
 
-// Install — cache the app shell
+// Install — cache static assets, skip waiting immediately
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -16,47 +14,58 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate — remove old caches
+// Activate — remove ALL old caches and claim clients immediately
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys
-        .filter(k => k !== CACHE_NAME)
-        .map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
 // Fetch strategy:
-//   Supabase API calls → network only (always fresh data)
-//   Everything else   → cache first, fall back to network
+//   HTML navigation   → network-first (always fresh), fall back to cache
+//   Supabase API      → network only (never cache live data)
+//   Google Fonts API  → network only
+//   Other assets      → cache-first, fall back to network
 self.addEventListener('fetch', event => {
   const url = event.request.url;
 
-  // Let Supabase and Google Fonts API calls go straight to network
+  // Always go straight to network for Supabase and font APIs
   if (url.includes('supabase.co') || url.includes('fonts.gstatic.com')) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Cache-first for app shell (HTML, CSS, fonts stylesheet)
+  // Network-first for HTML navigation (index.html, root)
+  if (event.request.mode === 'navigate' ||
+      url.endsWith('.html') || url.endsWith('/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Cache the fresh HTML for offline fallback
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for everything else (fonts, icons, manifest)
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
-        // Cache valid responses for future offline use
         if (response && response.status === 200 && response.type !== 'opaque') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
-      }).catch(() => {
-        // If both cache and network fail, return the cached index for navigation
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
+      }).catch(() => null);
     })
   );
 });

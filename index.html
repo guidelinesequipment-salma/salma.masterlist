@@ -2348,35 +2348,40 @@
     renderSchedule();
   }
 
-  renderPatients();
-  renderStaff();
-
   // ── Bootstrap: load all data from Supabase ──
   (async () => {
-    showLoader('Connecting to database…');
-    try {
+    showLoader('Loading data…');
+
+    const tryLoad = async (attempt) => {
       const [patRows, staffRows, schedRows] = await Promise.all([
         sbGet('patients'),
         sbGet('staff'),
         sbGet('schedule_slots'),
       ]);
-
       patients = patRows.map(rowToPatient);
       staff    = staffRows.map(rowToStaff);
-
-      // Rebuild schedule object from flat rows
       schedule = {};
       schedRows.forEach(r => {
         if (!schedule[r.therapist_id]) schedule[r.therapist_id] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
         if (!schedule[r.therapist_id][r.day]) schedule[r.therapist_id][r.day] = [];
         schedule[r.therapist_id][r.day].push({ patientId: r.patient_id, role: r.role });
       });
+    };
 
+    try {
+      await tryLoad();
     } catch(err) {
-      console.error('Supabase load error:', err);
-      showToast('⚠️ Could not connect to database. Working offline.');
+      // Retry once after 2 seconds (handles transient network hiccup on hard refresh)
+      console.warn('First load failed, retrying…', err);
+      showLoader('Retrying connection…');
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        await tryLoad();
+      } catch(err2) {
+        console.error('Supabase load error:', err2);
+        showToast('⚠️ Could not load data. Check your connection and refresh.');
+      }
     } finally {
-      // Always hide loader and render — app works even without Supabase
       hideLoader();
       renderPatients();
       renderStaff();
