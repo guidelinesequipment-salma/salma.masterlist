@@ -573,10 +573,12 @@
     </div>
     <div class="sched-legend" style="margin-bottom:1.25rem;">
       <span style="font-weight:600;color:var(--text-primary);font-size:12px;">Insurance Category:</span>
+      <span class="sched-legend-item"><span class="cat-dot cat-par"></span>PAR (2.5 slots)</span>
       <span class="sched-legend-item"><span class="cat-dot cat-ssr"></span>SSR (2 slots)</span>
       <span class="sched-legend-item"><span class="cat-dot cat-ltc"></span>LTC (1 slot)</span>
+      <span class="sched-legend-item"><span class="cat-dot cat-ltc"></span>LTC 1.5 (1.5 slots)</span>
+      <span class="sched-legend-item"><span class="cat-dot cat-ltc"></span>LTC 2 (2 slots)</span>
       <span class="sched-legend-item"><span class="cat-dot cat-lowcost"></span>Low-cost (1 slot)</span>
-      <span class="sched-legend-item"><span class="cat-dot cat-par"></span>PAR (1 slot)</span>
     </div>
     <div class="sched-wrap">
       <table class="sched-table" id="sched-table">
@@ -683,7 +685,8 @@
           <label class="form-label">Category</label>
           <select class="form-select" id="f-category" onchange="updateRecommendations()">
             <option value="">Select</option>
-            <option>LTC</option><option>SSR</option><option>Low-cost</option><option>PAR</option>
+            <option>LTC</option><option>LTC 1.5</option><option>LTC 2</option>
+            <option>SSR</option><option>Low-cost</option><option>PAR</option>
           </select>
         </div>
         <div class="form-group" id="f-details-group">
@@ -1316,7 +1319,7 @@
     return assigned.reduce((total, p) => {
       if (seen.has(p.id)) return total;
       seen.add(p.id);
-      return total + (p.category === 'SSR' ? 2 : 1);
+      return total + getSlotWeight(p);
     }, 0);
   }
 
@@ -1716,13 +1719,16 @@
     schedule[tid][day] = [];
 
     // ── Insurance priority order for redistribution ──
+    // PAR first (highest), then SSR, then LTC variants, then Low-cost/ABM
     const insurancePriority = cat => {
       if (cat === 'PAR')      return 1;
       if (cat === 'SSR')      return 2;
-      if (cat === 'LTC')      return 3;
-      if (cat === 'Low-cost') return 4;
-      if (cat === 'ABM')      return 4;
-      return 5;
+      if (cat === 'LTC 2')    return 3;
+      if (cat === 'LTC 1.5')  return 4;
+      if (cat === 'LTC')      return 5;
+      if (cat === 'Low-cost') return 6;
+      if (cat === 'ABM')      return 6;
+      return 7;
     };
 
     // Sort entries by priority (PAR first, Low-cost last)
@@ -1854,7 +1860,13 @@
 
   // Slot weight: SSR = 2, everything else = 1
   function getSlotWeight(patient) {
-    return patient.category === 'SSR' ? 2 : 1;
+    const cat = patient.category || '';
+    if (cat === 'SSR')     return 2;
+    if (cat === 'PAR')     return 2.5;
+    if (cat === 'LTC 2')   return 2;
+    if (cat === 'LTC 1.5') return 1.5;
+    // LTC, Low-cost, ABM, or anything else = 1 slot
+    return 1;
   }
 
   // Total slot weight used by a therapist across all their unique patients this week
