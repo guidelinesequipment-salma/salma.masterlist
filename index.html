@@ -136,7 +136,6 @@
   .table-wrap tr.row-par td { background: var(--par-row); }
   .table-wrap tr.row-par:hover td { background: var(--par-hover); }
   .table-wrap .empty-row td { text-align: center; color: var(--text-muted); padding: 3rem; font-size: 14px; }
-  .mrn-code { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-secondary); }
 
   /* ── Badges ── */
   .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 500; }
@@ -498,7 +497,7 @@
     <div class="toolbar">
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input class="search-input" id="patient-search" type="text" placeholder="Search by name, MRN, room…" oninput="renderPatients()">
+        <input class="search-input" id="patient-search" type="text" placeholder="Search by name or room…" oninput="renderPatients()">
       </div>
       <select class="filter-select" id="filter-ward" onchange="onWardSelectChange()">
         <option value="">All Wards</option>
@@ -515,7 +514,7 @@
       <table>
         <thead>
           <tr>
-            <th>#</th><th>Patient Name</th><th>MRN</th><th>Gender</th><th>Ward</th><th>Room</th>
+            <th>#</th><th>Patient Name</th><th>Gender</th><th>Ward</th><th>Room</th>
             <th>Primary</th><th>Secondary</th><th>Tertiary</th>
             <th>Insurance</th><th>Category</th><th>Details</th><th>Freq.</th><th>Actions</th>
           </tr>
@@ -621,10 +620,6 @@
         <div class="form-group span-2">
           <label class="form-label">Full Name *</label>
           <input class="form-input" id="f-name" type="text" placeholder="e.g. Mohammed Al Rashidi">
-        </div>
-        <div class="form-group">
-          <label class="form-label">MRN *</label>
-          <input class="form-input" id="f-mrn" type="text" placeholder="e.g. MRN-00123">
         </div>
         <div class="form-group">
           <label class="form-label">Ward *</label>
@@ -832,13 +827,13 @@
 
   // ── Map app objects → DB rows ──
   const patientToRow = p => ({
-    id: p.id, name: p.name, mrn: p.mrn, ward: p.ward, room: p.room,
+    id: p.id, name: p.name, ward: p.ward, room: p.room,
     gender: p.gender || null, freq: p.freq || null,
     primary_therapist: p.primary || null, secondary_therapist: p.secondary || null, tertiary_therapist: p.tertiary || null,
     insurance: p.insurance || null, category: p.category || null, details: p.details || null,
   });
   const rowToPatient = r => ({
-    id: r.id, name: r.name, mrn: r.mrn, ward: r.ward, room: r.room,
+    id: r.id, name: r.name, ward: r.ward, room: r.room,
     gender: r.gender || '', freq: r.freq || '',
     primary: r.primary_therapist || '', secondary: r.secondary_therapist || '', tertiary: r.tertiary_therapist || '',
     insurance: r.insurance || '', category: r.category || '', details: r.details || '',
@@ -971,13 +966,12 @@
     const fI = document.getElementById('filter-insurance').value;
 
     const list = patients.filter(p =>
-      ((p.name||'').toLowerCase().includes(q) || (p.mrn||'').toLowerCase().includes(q) || (p.room||'').toLowerCase().includes(q)) &&
+      ((p.name||'').toLowerCase().includes(q) || (p.room||'').toLowerCase().includes(q)) &&
       (!fW || p.ward === fW) && (!fI || p.insurance === fI)
     );
 
-    const tbody = document.getElementById('patient-tbody');
     if (!list.length) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="14">No patients found.</td></tr>`;
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="13">No patients found.</td></tr>`;
       return;
     }
     const genderCell = g => {
@@ -991,7 +985,6 @@
       <tr class="${rowClass}">
         <td style="color:var(--text-muted);font-size:12px;">${i+1}</td>
         <td style="font-weight:500;">${esc(p.name)}</td>
-        <td><span class="mrn-code">${esc(p.mrn)}</span></td>
         <td>${genderCell(p.gender)}</td>
         <td>${wardBadge(p.ward)}</td>
         <td style="font-family:'DM Mono',monospace;font-size:13px;">${esc(p.room)||'—'}</td>
@@ -1461,7 +1454,6 @@
     if (id) {
       const p = patients.find(x=>x.id===id);
       document.getElementById('f-name').value      = p.name      || '';
-      document.getElementById('f-mrn').value       = p.mrn       || '';
       document.getElementById('f-ward').value      = p.ward      || '';
       document.getElementById('f-room').value      = p.room      || '';
       document.getElementById('f-gender').value    = p.gender    || '';
@@ -1473,7 +1465,7 @@
       document.getElementById('f-category').value  = p.category  || '';
       document.getElementById('f-details').value   = p.details   || '';
     } else {
-      ['f-name','f-mrn','f-room','f-freq'].forEach(id => document.getElementById(id).value='');
+      ['f-name','f-room','f-freq'].forEach(id => document.getElementById(id).value='');
       ['f-ward','f-gender','f-primary','f-secondary','f-tertiary','f-insurance','f-category','f-details'].forEach(id => document.getElementById(id).value='');
     }
     onInsuranceChange();
@@ -1483,11 +1475,10 @@
   function closePatientModal() { document.getElementById('patient-modal').classList.remove('open'); }
   async function savePatient() {
     const name = document.getElementById('f-name').value.trim();
-    const mrn  = document.getElementById('f-mrn').value.trim();
     const ward = document.getElementById('f-ward').value;
-    if (!name||!mrn||!ward) { showToast('⚠️ Please fill in Name, MRN, and Ward.'); return; }
+    if (!name||!ward) { showToast('⚠️ Please fill in Name and Ward.'); return; }
     const data = {
-      name, mrn, ward,
+      name, ward,
       room:   document.getElementById('f-room').value.trim(),
       gender: document.getElementById('f-gender').value,
       freq:   document.getElementById('f-freq').value,
@@ -2106,7 +2097,7 @@
     const usedSlots   = getTherapistUsedSlots(pickerTid);
 
     const filtered = eligible.filter(p =>
-      (p.name||'').toLowerCase().includes(q) || (p.mrn||'').toLowerCase().includes(q)
+      (p.name||'').toLowerCase().includes(q)
     );
 
     if (!filtered.length) {
