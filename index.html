@@ -885,6 +885,7 @@
     { key: 'OT',  label: 'Occupational Therapy',      icon: '🤲' },
     { key: 'SLP', label: 'Speech-Language Pathology', icon: '🗣️' },
   ];
+  const DAY_LABELS   = { mon:'M', tue:'T', wed:'W', thu:'Th', fri:'F' };
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -970,11 +971,11 @@
       (!fW || p.ward === fW) && (!fI || p.insurance === fI)
     );
 
+    const tbody = document.getElementById('patient-tbody');
     if (!list.length) {
-      document.getElementById('patient-tbody').innerHTML = `<tr class="empty-row"><td colspan="13">No patients found.</td></tr>`;
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="13">No patients found.</td></tr>`;
       return;
     }
-    const tbody = document.getElementById('patient-tbody');
     const genderCell = g => {
       if (!g) return '—';
       const label = g === 'male' ? '♂ M' : '♀ F';
@@ -1089,14 +1090,18 @@
         p.tertiary === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
       );
 
-      const getRole = (pat, role) => {
-        const dist = calcSessions(pat.freq, !!pat.primary, !!pat.secondary, !!pat.tertiary);
-        return role === 'p' ? dist.p : role === 's' ? dist.s : dist.t;
-      };
-
-      const primaryRows   = primaryPats.map(p => ({ pat:p, sessions: getRole(p,'p') }));
-      const secondaryRows = secondaryPats.map(p => ({ pat:p, sessions: getRole(p,'s') }));
-      const tertiaryRows  = tertiaryPats.map(p => ({ pat:p, sessions: getRole(p,'t') }));
+      const primaryRows   = primaryPats.map(p => {
+        const dist = calcSessions(p.freq, !!p.primary, !!p.secondary, !!p.tertiary);
+        return { pat:p, sessions: dist.p };
+      });
+      const secondaryRows = secondaryPats.map(p => {
+        const dist = calcSessions(p.freq, !!p.primary, !!p.secondary, !!p.tertiary);
+        return { pat:p, sessions: dist.s };
+      });
+      const tertiaryRows  = tertiaryPats.map(p => {
+        const dist = calcSessions(p.freq, !!p.primary, !!p.secondary, !!p.tertiary);
+        return { pat:p, sessions: dist.t };
+      });
 
       const pSessTotal  = primaryRows.reduce((a,r)=>a+r.sessions,0);
       const sSessTotal  = secondaryRows.reduce((a,r)=>a+r.sessions,0);
@@ -1240,9 +1245,8 @@
       const discKey     = s.discipline.toLowerCase();
       const genderLabel = s.gender === 'male' ? 'Male' : s.gender === 'female' ? 'Female' : '';
       const workDays    = s.workDays || ['mon','tue','wed','thu','fri'];
-      const dayLabels   = { mon:'M', tue:'T', wed:'W', thu:'Th', fri:'F' };
       const dayPips     = DAYS.map(d =>
-        `<span class="day-pip ${workDays.includes(d)?'on':'off'}" title="${DAY_FULL[d]}">${dayLabels[d]}</span>`
+        `<span class="day-pip ${workDays.includes(d)?'on':'off'}" title="${DAY_FULL[d]}">${DAY_LABELS[d]}</span>`
       ).join('');
       return `
         <div class="staff-card disc-${discKey}">
@@ -1355,17 +1359,14 @@
       tags.push({ label: `${daysAvail} days/wk`, cls: 'good' });
     }
 
-    // ── Slot load ──
-    if (usedSlots >= SLOT_CAP) {
-      score += 500;
-      tags.push({ label: `Slots full (${usedSlots}/${SLOT_CAP})`, cls: 'caution' });
-    } else {
-      score += usedSlots * 2;
-      const rem = SLOT_CAP - usedSlots;
-      if (rem >= 8)      tags.push({ label: `Light load (${usedSlots}/${SLOT_CAP})`, cls: 'good' });
-      else if (rem >= 4) tags.push({ label: `Moderate (${usedSlots}/${SLOT_CAP})`, cls: 'info' });
-      else               tags.push({ label: `Heavy (${usedSlots}/${SLOT_CAP})`, cls: 'caution' });
-    }
+    // ── Slot load (weekly caseload estimate — lower is better) ──
+    // SLOT_CAP is per-day; weekly equivalent ≈ SLOT_CAP × working days
+    const weeklyCapEst = SLOT_CAP * (therapist.workDays || DAYS).length;
+    const loadRatio    = usedSlots / Math.max(weeklyCapEst, 1);
+    score += loadRatio * 20; // scale to ~0-20 penalty range
+    if (loadRatio < 0.4)      tags.push({ label: `Light load (${usedSlots} slots)`, cls: 'good' });
+    else if (loadRatio < 0.7) tags.push({ label: `Moderate (${usedSlots} slots)`, cls: 'info' });
+    else                       tags.push({ label: `Heavy (${usedSlots} slots)`, cls: 'caution' });
 
     // ── Patient count ──
     score += patientCount * 1.5;
@@ -1438,9 +1439,8 @@
   }
 
   function assignRecommended(name) {
-    document.getElementById('f-primary').value = name;
-    // Brief visual flash on the dropdown
     const el = document.getElementById('f-primary');
+    el.value = name;
     el.style.borderColor = 'var(--accent)';
     el.style.boxShadow   = '0 0 0 3px var(--accent-soft)';
     setTimeout(() => { el.style.borderColor = ''; el.style.boxShadow = ''; }, 1200);
@@ -1472,7 +1472,6 @@
     onInsuranceChange();
     updateRecommendations();
   }
-  function editPatient(id) { openPatientModal(id); }
   function closePatientModal() { document.getElementById('patient-modal').classList.remove('open'); }
   async function savePatient() {
     const name = document.getElementById('f-name').value.trim();
@@ -1562,7 +1561,6 @@
       document.getElementById('sf-gender').value='';
     }
   }
-  function editStaff(id) { openStaffModal(id); }
   function closeStaffModal() { document.getElementById('staff-modal').classList.remove('open'); }
   async function saveStaff() {
     const name = document.getElementById('sf-name').value.trim();
@@ -1651,7 +1649,7 @@
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
     const id = btn.dataset.id;
-    if (btn.dataset.action === 'edit')   editPatient(id);
+    if (btn.dataset.action === 'edit')   openPatientModal(id);
     if (btn.dataset.action === 'delete') deletePatient(id);
   });
 
@@ -1660,7 +1658,7 @@
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
     const id = btn.dataset.id;
-    if (btn.dataset.action === 'edit-staff')   editStaff(id);
+    if (btn.dataset.action === 'edit-staff')   openStaffModal(id);
     if (btn.dataset.action === 'delete-staff') deleteStaff(id);
   });
 
