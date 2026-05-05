@@ -971,9 +971,10 @@
     );
 
     if (!list.length) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="13">No patients found.</td></tr>`;
+      document.getElementById('patient-tbody').innerHTML = `<tr class="empty-row"><td colspan="13">No patients found.</td></tr>`;
       return;
     }
+    const tbody = document.getElementById('patient-tbody');
     const genderCell = g => {
       if (!g) return '—';
       const label = g === 'male' ? '♂ M' : '♀ F';
