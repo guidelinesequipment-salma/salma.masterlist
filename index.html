@@ -1099,26 +1099,28 @@
     const cards = staff.map(s => {
       const isLowCostIns = p => p.insurance === 'Low-cost' || p.insurance === 'ABM';
 
-      // Low-cost bucket: patients with Low-cost OR ABM insurance assigned to this therapist
+      // Low-cost bucket: ALL patients with Low-cost OR ABM insurance assigned to this therapist
       const lowcostPats = patients.filter(p =>
         !p.archived &&
         isLowCostIns(p) &&
         (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name) &&
         parseInt(p.freq)
       );
-      const lowcostIds = new Set(lowcostPats.map(p => p.id));
 
-      // Primary: assigned as primary AND NOT in the low-cost bucket
+      // Primary: assigned as primary, NOT low-cost/ABM insurance
       const primaryPats   = patients.filter(p =>
-        !p.archived && p.primary === s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
+        !p.archived && !isLowCostIns(p) &&
+        p.primary === s.name && parseInt(p.freq)
       );
-      // Secondary: assigned as secondary, not already primary, not in low-cost bucket
+      // Secondary: assigned as secondary, not also primary, NOT low-cost/ABM insurance
       const secondaryPats = patients.filter(p =>
-        !p.archived && p.secondary === s.name && p.primary !== s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
+        !p.archived && !isLowCostIns(p) &&
+        p.secondary === s.name && p.primary !== s.name && parseInt(p.freq)
       );
-      // Tertiary: assigned as tertiary, not already primary/secondary, not in low-cost bucket
+      // Tertiary: assigned as tertiary, not already primary/secondary, NOT low-cost/ABM insurance
       const tertiaryPats  = patients.filter(p =>
-        !p.archived && p.tertiary === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
+        !p.archived && !isLowCostIns(p) &&
+        p.tertiary === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq)
       );
 
       const primaryRows   = primaryPats.map(p => ({
@@ -1330,10 +1332,13 @@
     return patients.filter(p => p.primary === therapist.name).length;
   }
 
-  // Count SSR+PAR patients a therapist sees (primary)
+  // Count SSR+PAR patients a therapist sees (primary, excluding low-cost/ABM)
   function getTherapistHeavyCatCount(therapist) {
     return patients.filter(p =>
-      p.primary === therapist.name && (p.category === 'SSR' || p.category === 'PAR')
+      !p.archived &&
+      p.primary === therapist.name &&
+      (p.category === 'SSR' || p.category === 'PAR') &&
+      p.insurance !== 'Low-cost' && p.insurance !== 'ABM'
     ).length;
   }
 
