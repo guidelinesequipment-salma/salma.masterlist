@@ -1140,7 +1140,17 @@
       const pSessTotal  = primaryRows.reduce((a,r)=>a+r.sessions,0);
       const sSessTotal  = secondaryRows.reduce((a,r)=>a+r.sessions,0);
       const tSessTotal  = tertiaryRows.reduce((a,r)=>a+r.sessions,0);
-      const lcSessTotal = lowcostPats.reduce((a,p)=>a+(parseInt(p.freq)||0),0);
+      // Low-cost sessions: split by role same as other buckets
+      const lcSessTotal = lowcostPats.reduce((a, p) => {
+        const freq = parseInt(p.freq)||0;
+        const hasS = !!p.secondary && staff.some(st => st.name === p.secondary);
+        const hasT = !!p.tertiary  && staff.some(st => st.name === p.tertiary);
+        const dist = calcSessions(freq, true, hasS, hasT);
+        if (p.primary   === s.name) return a + dist.p;
+        if (p.secondary === s.name) return a + dist.s;
+        if (p.tertiary  === s.name) return a + dist.t;
+        return a + freq;
+      }, 0);
       const totalSess   = pSessTotal + sSessTotal + tSessTotal + lcSessTotal;
       // Total includes all buckets (primary + secondary + tertiary + low-cost)
       const totalPats   = primaryPats.length + secondaryPats.length + tertiaryPats.length + lowcostPats.length;
@@ -1178,31 +1188,42 @@
 
       const lowcostSection = lowcostPats.length ? (() => {
         const sectionId = 'sec-' + s.id + '-lowcost';
+
+        const lowcostRows = lowcostPats.map(p => {
+          const freq = parseInt(p.freq)||0;
+          const hasS = !!p.secondary && staff.some(st => st.name === p.secondary);
+          const hasT = !!p.tertiary  && staff.some(st => st.name === p.tertiary);
+          const dist = calcSessions(freq, true, hasS, hasT);
+          // Determine how many sessions THIS therapist gets for this patient
+          let sessions = freq; // fallback: full freq if only one therapist
+          if (p.primary === s.name)   sessions = dist.p;
+          else if (p.secondary === s.name) sessions = dist.s;
+          else if (p.tertiary  === s.name) sessions = dist.t;
+          return { pat: p, sessions };
+        });
+
+        const lcSessActual = lowcostRows.reduce((a, r) => a + r.sessions, 0);
+        const role = p => p.primary === s.name ? 'Primary' : p.secondary === s.name ? 'Secondary' : 'Tertiary';
+        const roleClass = p => role(p).toLowerCase();
+
         return `
           <div class="caseload-section">
             <div class="caseload-section-hdr" onclick="toggleSection('${sectionId}')">
               <span class="role-pill lowcost">Low-cost</span>
               <span>${lowcostPats.length} patient${lowcostPats.length>1?'s':''}</span>
-              <span class="sess-count">${lcSessTotal} sess/wk</span>
+              <span class="sess-count">${lcSessActual} sess/wk</span>
               <span class="chevron" id="chev-${sectionId}">▶</span>
             </div>
             <div class="caseload-section-body" id="${sectionId}">
-              ${lowcostPats.map(p => {
-                const role = p.primary === s.name ? 'Primary'
-                           : p.secondary === s.name ? 'Secondary'
-                           : 'Tertiary';
-                const roleClass = role.toLowerCase();
-                const insBadgeText = p.insurance === 'ABM' ? 'ABM' : 'Low-cost';
-                return `
+              ${lowcostRows.map(({ pat, sessions }) => `
                 <div class="caseload-patient-row">
-                  <div class="cp-name">${esc(p.name)}</div>
-                  ${wardBadge(p.ward)}
-                  <span class="role-pill ${roleClass}" style="font-size:10px;padding:1px 6px;">${role}</span>
-                  <span style="font-size:10px;color:var(--text-muted);">${insBadgeText}</span>
-                  <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);min-width:36px;text-align:right;">${esc(p.room)||''}</div>
-                  <div class="cp-sessions">${p.freq||'—'} <span>sess/wk</span></div>
-                </div>`;
-              }).join('')}
+                  <div class="cp-name">${esc(pat.name)}</div>
+                  ${wardBadge(pat.ward)}
+                  <span class="role-pill ${roleClass(pat)}" style="font-size:10px;padding:1px 6px;">${role(pat)}</span>
+                  <span style="font-size:10px;color:var(--text-muted);">${pat.insurance === 'ABM' ? 'ABM' : 'Low-cost'}</span>
+                  <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);min-width:36px;text-align:right;">${esc(pat.room)||''}</div>
+                  <div class="cp-sessions">${sessions} <span>sess/wk</span></div>
+                </div>`).join('')}
             </div>
           </div>`;
       })() : '';
