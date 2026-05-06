@@ -1121,18 +1121,18 @@
         !p.archived && p.tertiary === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
       );
 
-      const primaryRows   = primaryPats.map(p => {
-        const dist = calcSessions(p.freq, !!p.primary, !!p.secondary, !!p.tertiary);
-        return { pat:p, sessions: dist.p };
-      });
-      const secondaryRows = secondaryPats.map(p => {
-        const dist = calcSessions(p.freq, !!p.primary, !!p.secondary, !!p.tertiary);
-        return { pat:p, sessions: dist.s };
-      });
-      const tertiaryRows  = tertiaryPats.map(p => {
-        const dist = calcSessions(p.freq, !!p.primary, !!p.secondary, !!p.tertiary);
-        return { pat:p, sessions: dist.t };
-      });
+      const primaryRows   = primaryPats.map(p => ({
+        pat: p,
+        sessions: calcSessions(parseInt(p.freq)||0, !!p.primary, !!p.secondary, !!p.tertiary).p
+      }));
+      const secondaryRows = secondaryPats.map(p => ({
+        pat: p,
+        sessions: calcSessions(parseInt(p.freq)||0, !!p.primary, !!p.secondary, !!p.tertiary).s
+      }));
+      const tertiaryRows  = tertiaryPats.map(p => ({
+        pat: p,
+        sessions: calcSessions(parseInt(p.freq)||0, !!p.primary, !!p.secondary, !!p.tertiary).t
+      }));
 
       const pSessTotal  = primaryRows.reduce((a,r)=>a+r.sessions,0);
       const sSessTotal  = secondaryRows.reduce((a,r)=>a+r.sessions,0);
