@@ -969,7 +969,7 @@
     const list = patients.filter(p =>
       ((p.name||'').toLowerCase().includes(q) || (p.room||'').toLowerCase().includes(q)) &&
       (!fW || p.ward === fW) && (!fI || p.insurance === fI)
-    );
+    ).sort((a, b) => (a.room||'').localeCompare(b.room||'', undefined, { numeric: true, sensitivity: 'base' }));
 
     const tbody = document.getElementById('patient-tbody');
     if (!list.length) {
