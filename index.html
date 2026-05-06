@@ -1123,16 +1123,15 @@
         p.tertiary === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq)
       );
 
-      // For session calculation, derive hasP/hasS/hasT from what's actually assigned
-      // This prevents empty-string fields from breaking the split calculation
-      const primaryRows   = primaryPats.map(p => ({
-        pat: p,
-        sessions: calcSessions(parseInt(p.freq)||0, true, !!p.secondary, !!p.tertiary).p
-      }));
-      const secondaryRows = secondaryPats.map(p => ({
-        pat: p,
-        sessions: calcSessions(parseInt(p.freq)||0, true, true, !!p.tertiary).s
-      }));
+      const primaryRows   = primaryPats.map(p => {
+        const hasS = !!p.secondary && staff.some(st => st.name === p.secondary);
+        const hasT = !!p.tertiary  && staff.some(st => st.name === p.tertiary);
+        return { pat: p, sessions: calcSessions(parseInt(p.freq)||0, true, hasS, hasT).p };
+      });
+      const secondaryRows = secondaryPats.map(p => {
+        const hasT = !!p.tertiary && staff.some(st => st.name === p.tertiary);
+        return { pat: p, sessions: calcSessions(parseInt(p.freq)||0, true, true, hasT).s };
+      });
       const tertiaryRows  = tertiaryPats.map(p => ({
         pat: p,
         sessions: calcSessions(parseInt(p.freq)||0, true, true, true).t
