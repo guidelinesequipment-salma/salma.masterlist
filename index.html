@@ -298,7 +298,45 @@
   .absent-toggle:hover { border-color:var(--red); color:var(--red); background:var(--red-light); }
   .absent-toggle.active { background:rgba(220,38,38,0.1); border-color:var(--red); color:var(--red); }
   .sched-day-cell.absent-day { background: repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.03) 6px,rgba(0,0,0,0.03) 12px); opacity:0.4; pointer-events:none; }
-  .day-toggles { display:flex; gap:6px; flex-wrap:wrap; }
+  /* ── Appointments ── */
+  .appt-day-btn {
+    padding:8px 18px; border-radius:8px; border:1.5px solid var(--border);
+    background:var(--bg-card); color:var(--text-muted); font-family:'DM Sans',sans-serif;
+    font-size:13px; font-weight:500; cursor:pointer; transition:all 0.15s;
+  }
+  .appt-day-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .appt-day-btn.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .appt-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media(max-width:700px) { .appt-grid { grid-template-columns:1fr; } }
+  .appt-panel { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .appt-panel-header { padding:12px 16px; background:var(--bg); border-bottom:1px solid var(--border); font-size:14px; font-weight:600; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+  .appt-count-badge { background:var(--accent); color:#fff; border-radius:20px; padding:1px 8px; font-size:12px; font-weight:600; }
+  .appt-item { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); font-size:13.5px; }
+  .appt-item:last-child { border-bottom:none; }
+  .appt-item-name { font-weight:500; flex:1; color:var(--text-primary); }
+  .appt-remove-btn { width:26px; height:26px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all 0.15s; }
+  .appt-remove-btn:hover { background:var(--red-light); color:var(--red); border-color:var(--red); }
+  .appt-empty { padding:2.5rem; text-align:center; color:var(--text-muted); font-size:13.5px; }
+  .appt-picker-item { display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid var(--border); cursor:pointer; font-size:13px; transition:background 0.12s; }
+  .appt-picker-item:last-child { border-bottom:none; }
+  .appt-picker-item:hover { background:var(--sky); }
+  .appt-picker-item.already { opacity:0.45; cursor:not-allowed; pointer-events:none; }
+  .appt-type-btn {
+    padding:5px 14px; border-radius:20px; border:1.5px solid var(--border);
+    background:var(--bg-card); color:var(--text-muted); font-family:'DM Sans',sans-serif;
+    font-size:12.5px; font-weight:500; cursor:pointer; transition:all 0.15s;
+  }
+  .appt-type-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .appt-type-btn.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .appt-type-badge { font-size:10px; padding:1px 6px; border-radius:10px; font-weight:600; }
+  .appt-type-badge.appointment { background:rgba(37,99,235,0.12); color:#1d4ed8; }
+  .appt-type-badge.sick { background:rgba(220,38,38,0.12); color:var(--red); }
+  [data-theme="dark"] .appt-type-badge.appointment { background:rgba(96,165,250,0.15); color:#60a5fa; }
+  [data-theme="dark"] .appt-type-badge.sick { background:rgba(248,113,113,0.15); color:#f87171; }
+
+  .appt-sched-note { font-size:10px; color:var(--red); margin-left:auto; white-space:nowrap; font-weight:500; }
+
+  /* ── Working day pills ── */
   .day-toggle {
     padding:5px 11px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;
     border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-muted);
@@ -461,6 +499,7 @@
   <button class="tab-btn"         onclick="switchTab('staff',this)">👥 Staff Directory</button>
   <button class="tab-btn"         onclick="switchTab('caseload',this)">📊 Caseload Distribution</button>
   <button class="tab-btn"         onclick="switchTab('schedule',this)">📅 Patient Scheduling</button>
+  <button class="tab-btn"         onclick="switchTab('appointments',this)">🏥 Appointment / Sick</button>
 </div>
 
 <!-- ═══ PATIENTS ═══ -->
@@ -596,6 +635,51 @@
       </table>
       <div id="sched-empty" class="sched-empty-msg" style="display:none;">
         No staff added yet. Add therapists in the Staff Directory to build a schedule.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APPOINTMENTS / SICK ═══ -->
+<div id="page-appointments" class="page">
+  <div class="container">
+    <div class="appt-toolbar" style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;flex-wrap:wrap;">
+      <div style="font-size:13.5px;color:var(--text-secondary);">Patients marked for appointment or sick on a given day are automatically removed from that day's schedule.</div>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="clearAllAppointments()">🗑 Clear All</button>
+      </div>
+    </div>
+    <!-- Day tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap;">
+      <button class="appt-day-btn active" data-day="mon" onclick="selectApptDay('mon',this)">Monday</button>
+      <button class="appt-day-btn" data-day="tue" onclick="selectApptDay('tue',this)">Tuesday</button>
+      <button class="appt-day-btn" data-day="wed" onclick="selectApptDay('wed',this)">Wednesday</button>
+      <button class="appt-day-btn" data-day="thu" onclick="selectApptDay('thu',this)">Thursday</button>
+      <button class="appt-day-btn" data-day="fri" onclick="selectApptDay('fri',this)">Friday</button>
+    </div>
+    <div class="appt-grid">
+      <!-- Left: current list for selected day -->
+      <div class="appt-panel">
+        <div class="appt-panel-header">
+          <span id="appt-day-label">Monday</span>
+          <span id="appt-day-count" class="appt-count-badge">0</span>
+        </div>
+        <div id="appt-list">
+          <div class="appt-empty">No patients marked for this day.</div>
+        </div>
+      </div>
+      <!-- Right: patient picker with type toggle -->
+      <div class="appt-panel">
+        <div class="appt-panel-header">Add Patient</div>
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
+          <!-- Type toggle: Appointment or Sick -->
+          <div style="display:flex;gap:6px;">
+            <button class="appt-type-btn active" data-type="appointment" onclick="selectApptType('appointment',this)">🏥 Appointment</button>
+            <button class="appt-type-btn" data-type="sick" onclick="selectApptType('sick',this)">🤒 Sick</button>
+          </div>
+          <input class="search-input" id="appt-search" type="text" placeholder="Search patient…" oninput="renderApptPicker()" style="padding:8px 12px;">
+        </div>
+        <div id="appt-picker"></div>
       </div>
     </div>
   </div>
@@ -801,8 +885,17 @@
 <script>
   // ══════════════════════════════════════════
   //  SUPABASE CONFIG
-  //  Run this SQL in Supabase if not already done:
+  //  Run these SQL commands in Supabase if not already done:
   //  ALTER TABLE patients ADD COLUMN IF NOT EXISTS archived boolean DEFAULT false;
+  //  CREATE TABLE IF NOT EXISTS appointments (
+  //    id bigserial primary key,
+  //    patient_id text not null,
+  //    day text not null,
+  //    type text default 'appointment',
+  //    unique(patient_id, day)
+  //  );
+  //  ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+  //  CREATE POLICY "Allow all" ON appointments FOR ALL USING (true) WITH CHECK (true);
   // ══════════════════════════════════════════
   const SUPA_URL = 'https://iiineqyblmwqkzipnguh.supabase.co';
   const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpaW5lcXlibG13cWt6aXBuZ3VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzIyMTQsImV4cCI6MjA5MzMwODIxNH0.ZoLrIXG7VKO12Cnou6BXeTpDf9oZZBeHpkf_CZ5BFwE';
@@ -902,10 +995,11 @@
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('page-' + tab).classList.add('active');
     btn.classList.add('active');
-    if (tab === 'patients') renderPatients();
-    if (tab === 'staff')    renderStaff();
-    if (tab === 'caseload') renderCaseload();
-    if (tab === 'schedule') renderSchedule();
+    if (tab === 'patients')     renderPatients();
+    if (tab === 'staff')        renderStaff();
+    if (tab === 'caseload')     renderCaseload();
+    if (tab === 'schedule')     renderSchedule();
+    if (tab === 'appointments') renderAppointments();
   }
 
   // ── Ward filter via stat cards ──
@@ -2145,6 +2239,12 @@
       return;
     }
 
+    // Appointment guard — if therapist has an appointment this day, block scheduling
+    if (appointments[pickerDay]?.size > 0) {
+      const allOnAppt = eligible.every(p => appointments[pickerDay].has(p.id));
+      // Show appointment note in picker items (handled per-patient below)
+    }
+
     // Absent guard (full week or this specific day)
     if (absentIds.has(therapist.id) || isTherapistAbsentOnDay(therapist.id, pickerDay)) {
       list.innerHTML = `<div class="sched-picker-empty">${esc(therapist.name)} is marked absent${absentIds.has(therapist.id) ? ' this week' : ` on ${DAY_FULL[pickerDay]}`}.</div>`;
@@ -2178,15 +2278,15 @@
       const alreadyHere   = dayPatients.has(p.id);
       const busyElsewhere = !alreadyHere && busyToday.has(p.id);
       const sessMaxed     = used >= allowed;
-      // Only disable if patient is already here, busy, or sessions maxed
-      // Slot cap no longer blocks — it's informational only
-      const disabled      = alreadyHere || busyElsewhere || sessMaxed;
+      const hasAppt       = !!(appointments[pickerDay]?.has(p.id));
+      const disabled      = alreadyHere || busyElsewhere || sessMaxed || hasAppt;
       const role          = getPatientRole(therapist, p);
       const slotCost      = getSlotWeight(p);
       const wouldExceed   = (daySlots + slotCost) > SLOT_CAP;
 
       let hint = '';
-      if (alreadyHere)        hint = ' · already here';
+      if (hasAppt)            hint = ' · 🏥 has appointment';
+      else if (alreadyHere)   hint = ' · already here';
       else if (busyElsewhere) hint = ' · busy today';
       else if (sessMaxed)     hint = ` · sessions maxed (${used}/${allowed})`;
       else if (wouldExceed)   hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${SLOT_CAP})`;
@@ -2252,7 +2352,9 @@
       const t = staff.find(s => s.id === tid);
       const workDays = t?.workDays || DAYS;
       const available = workDays.filter(d =>
-        !patientDays[patId]?.has(d) && !isTherapistAbsentOnDay(tid, d)
+        !patientDays[patId]?.has(d) &&
+        !isTherapistAbsentOnDay(tid, d) &&
+        !(appointments[d]?.has(patId))  // skip days patient has an appointment
       );
       if (!available.length) return null;
       available.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || DAYS.indexOf(a) - DAYS.indexOf(b));
@@ -2414,10 +2516,11 @@
     showLoader('Loading data…');
 
     const tryLoad = async (attempt) => {
-      const [patRows, staffRows, schedRows] = await Promise.all([
+      const [patRows, staffRows, schedRows, apptRows] = await Promise.all([
         sbGet('patients'),
         sbGet('staff'),
         sbGet('schedule_slots'),
+        sbGet('appointments'),
       ]);
       patients = patRows.map(rowToPatient);
       staff    = staffRows.map(rowToStaff);
@@ -2427,6 +2530,8 @@
         if (!schedule[r.therapist_id][r.day]) schedule[r.therapist_id][r.day] = [];
         schedule[r.therapist_id][r.day].push({ patientId: r.patient_id, role: r.role });
       });
+      appointments = { mon: new Map(), tue: new Map(), wed: new Map(), thu: new Map(), fri: new Map() };
+      apptRows.forEach(r => { if (appointments[r.day]) appointments[r.day].set(r.patient_id, r.type || 'appointment'); });
     };
 
     try {
@@ -2491,7 +2596,159 @@
     schedule[pickerTid][pickerDay].push({ patientId: pid, role });
     saveSchedule().then(() => { closePicker(); renderSchedule(); });
   });
-  // ── Register Service Worker ──
+  // ══════════════════════════════════════════
+  //  APPOINTMENTS / SICK
+  //  appointments = { mon: Map<patientId, type>, tue: ..., ... }
+  //  type = 'appointment' | 'sick'
+  //  Both types remove the patient from that day's schedule.
+  //  Persisted in Supabase: appointments table (patient_id, day, type)
+  // ══════════════════════════════════════════
+
+  let appointments = { mon: new Map(), tue: new Map(), wed: new Map(), thu: new Map(), fri: new Map() };
+  let apptSelectedDay  = 'mon';
+  let apptSelectedType = 'appointment';
+
+  async function loadAppointments() {
+    const rows = await sbGet('appointments');
+    appointments = { mon: new Map(), tue: new Map(), wed: new Map(), thu: new Map(), fri: new Map() };
+    rows.forEach(r => {
+      if (appointments[r.day]) appointments[r.day].set(r.patient_id, r.type || 'appointment');
+    });
+  }
+
+  async function addAppointment(patientId, day) {
+    if (appointments[day].has(patientId)) return;
+    const type = apptSelectedType;
+    appointments[day].set(patientId, type);
+
+    // Remove from schedule for this day across all therapists
+    let schedChanged = false;
+    Object.values(schedule).forEach(days => {
+      const before = (days[day]||[]).length;
+      days[day] = (days[day]||[]).filter(e => e.patientId !== patientId);
+      if (days[day].length !== before) schedChanged = true;
+    });
+    if (schedChanged) await saveSchedule();
+
+    // Save to Supabase
+    await fetch(`${SUPA_URL}/rest/v1/appointments`, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ patient_id: patientId, day, type }),
+    });
+
+    renderApptDay();
+    renderApptPicker();
+    if (document.getElementById('page-schedule').classList.contains('active')) renderSchedule();
+    const label = type === 'sick' ? '🤒 Sick' : '🏥 Appointment';
+    showToast(`Patient marked as ${label} on ${DAY_FULL[day]} and removed from that day's schedule.`);
+  }
+
+  async function removeAppointment(patientId, day) {
+    appointments[day].delete(patientId);
+    await fetch(`${SUPA_URL}/rest/v1/appointments?patient_id=eq.${encodeURIComponent(patientId)}&day=eq.${day}`, {
+      method: 'DELETE', headers: HEADERS,
+    });
+    renderApptDay();
+    renderApptPicker();
+  }
+
+  async function clearAllAppointments() {
+    openSchedConfirm('🗑️', 'Clear All Entries',
+      'This will remove all patients from all appointment and sick lists.',
+      'Clear All', async () => {
+        appointments = { mon: new Map(), tue: new Map(), wed: new Map(), thu: new Map(), fri: new Map() };
+        await fetch(`${SUPA_URL}/rest/v1/appointments?id=neq.null`, { method: 'DELETE', headers: HEADERS });
+        renderApptDay();
+        renderApptPicker();
+        showToast('All entries cleared.');
+      });
+  }
+
+  function selectApptDay(day, btn) {
+    apptSelectedDay = day;
+    document.querySelectorAll('.appt-day-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('appt-day-label').textContent = DAY_FULL[day];
+    renderApptDay();
+    renderApptPicker();
+  }
+
+  function selectApptType(type, btn) {
+    apptSelectedType = type;
+    document.querySelectorAll('.appt-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function renderApptDay() {
+    const day    = apptSelectedDay;
+    const dayMap = appointments[day] || new Map();
+    const list   = document.getElementById('appt-list');
+    const countBadge = document.getElementById('appt-day-count');
+    countBadge.textContent = dayMap.size;
+
+    if (!dayMap.size) {
+      list.innerHTML = '<div class="appt-empty">No patients marked for this day.</div>';
+      return;
+    }
+    list.innerHTML = [...dayMap.entries()].map(([pid, type]) => {
+      const pat = patients.find(p => p.id === pid);
+      if (!pat) return '';
+      const typeLabel = type === 'sick' ? '🤒 Sick' : '🏥 Appointment';
+      return `
+        <div class="appt-item">
+          <span class="appt-type-badge ${type}">${typeLabel}</span>
+          <div class="appt-item-name">${esc(pat.name)}</div>
+          ${wardBadge(pat.ward)}
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);">${esc(pat.room)||''}</div>
+          <button class="appt-remove-btn" data-action="remove-appt" data-pid="${pid}" data-day="${day}" title="Remove">×</button>
+        </div>`;
+    }).filter(Boolean).join('');
+  }
+
+  function renderApptPicker() {
+    const day   = apptSelectedDay;
+    const q     = (document.getElementById('appt-search')?.value || '').toLowerCase();
+    const dayMap = appointments[day] || new Map();
+    const list  = document.getElementById('appt-picker');
+
+    const filtered = patients
+      .filter(p => !p.archived && (p.name||'').toLowerCase().includes(q))
+      .sort((a, b) => (a.name||'').localeCompare(b.name||''));
+
+    if (!filtered.length) {
+      list.innerHTML = '<div class="appt-empty">No patients found.</div>';
+      return;
+    }
+    list.innerHTML = filtered.map(p => {
+      const isOn   = dayMap.has(p.id);
+      const onType = isOn ? dayMap.get(p.id) : null;
+      return `
+        <div class="appt-picker-item ${isOn ? 'already' : ''}"
+          ${isOn ? '' : `data-action="add-appt" data-pid="${p.id}" data-day="${day}"`}>
+          <div style="flex:1;font-weight:500;">${esc(p.name)}</div>
+          ${wardBadge(p.ward)}
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);">${esc(p.room)||''}</div>
+          ${isOn
+            ? `<span class="appt-type-badge ${onType}">${onType === 'sick' ? '🤒 Sick' : '🏥 Appt'}</span>`
+            : `<span style="font-size:11px;color:var(--text-muted);">+ Add</span>`
+          }
+        </div>`;
+    }).join('');
+  }
+
+  function renderAppointments() {
+    renderApptDay();
+    renderApptPicker();
+  }
+
+  // Event delegation for appointments page
+  document.getElementById('page-appointments').addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'add-appt')    addAppointment(btn.dataset.pid, btn.dataset.day);
+    if (btn.dataset.action === 'remove-appt') removeAppointment(btn.dataset.pid, btn.dataset.day);
+  });
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
   }
