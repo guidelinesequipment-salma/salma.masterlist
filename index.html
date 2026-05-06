@@ -507,6 +507,7 @@
         <option value="">All Insurance</option>
         <option>Thiqa</option><option>Low-cost</option><option>ABM</option>
       </select>
+      <button class="btn btn-ghost" id="archive-toggle-btn" onclick="toggleShowArchived()" title="View archived patients">📦 Archived</button>
       <button class="btn btn-primary" onclick="openPatientModal()">+ Add Patient</button>
     </div>
 
@@ -800,6 +801,8 @@
 <script>
   // ══════════════════════════════════════════
   //  SUPABASE CONFIG
+  //  Run this SQL in Supabase if not already done:
+  //  ALTER TABLE patients ADD COLUMN IF NOT EXISTS archived boolean DEFAULT false;
   // ══════════════════════════════════════════
   const SUPA_URL = 'https://iiineqyblmwqkzipnguh.supabase.co';
   const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpaW5lcXlibG13cWt6aXBuZ3VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzIyMTQsImV4cCI6MjA5MzMwODIxNH0.ZoLrIXG7VKO12Cnou6BXeTpDf9oZZBeHpkf_CZ5BFwE';
@@ -831,12 +834,14 @@
     gender: p.gender || null, freq: p.freq || null,
     primary_therapist: p.primary || null, secondary_therapist: p.secondary || null, tertiary_therapist: p.tertiary || null,
     insurance: p.insurance || null, category: p.category || null, details: p.details || null,
+    archived: p.archived || false,
   });
   const rowToPatient = r => ({
     id: r.id, name: r.name, ward: r.ward, room: r.room,
     gender: r.gender || '', freq: r.freq || '',
     primary: r.primary_therapist || '', secondary: r.secondary_therapist || '', tertiary: r.tertiary_therapist || '',
     insurance: r.insurance || '', category: r.category || '', details: r.details || '',
+    archived: r.archived || false,
   });
   const staffToRow = s => ({
     id: s.id, name: s.name, discipline: s.discipline,
@@ -855,6 +860,7 @@
   let editingPatientId = null;
   let editingStaffId   = null;
   let activeWardFilter = '';
+  let showArchived     = false;
 
   // ── Save functions (write to Supabase + keep local array in sync) ──
   async function savePatientRow(p) { await sbUpsert('patients', patientToRow(p)); }
@@ -952,12 +958,22 @@
 
   // ── Patient stats ──
   function updatePatientStats() {
-    const f = w => patients.filter(p => p.ward === w).length;
-    document.getElementById('stat-total').textContent  = patients.length;
+    const active = patients.filter(p => !p.archived);
+    const f = w => active.filter(p => p.ward === w).length;
+    document.getElementById('stat-total').textContent  = active.length;
     document.getElementById('stat-ward-a').textContent = f('Ward A');
     document.getElementById('stat-ward-b').textContent = f('Ward B');
     document.getElementById('stat-icu1').textContent   = f('ICU 1');
     document.getElementById('stat-icu2').textContent   = f('ICU 2');
+  }
+
+  function toggleShowArchived() {
+    showArchived = !showArchived;
+    const btn = document.getElementById('archive-toggle-btn');
+    btn.textContent = showArchived ? '📋 Active' : '📦 Archived';
+    btn.style.background = showArchived ? 'var(--accent)' : '';
+    btn.style.color      = showArchived ? '#fff' : '';
+    renderPatients();
   }
 
   function renderPatients() {
@@ -967,13 +983,26 @@
     const fI = document.getElementById('filter-insurance').value;
 
     const list = patients.filter(p =>
+      (!!p.archived === showArchived) &&
       ((p.name||'').toLowerCase().includes(q) || (p.room||'').toLowerCase().includes(q)) &&
       (!fW || p.ward === fW) && (!fI || p.insurance === fI)
     ).sort((a, b) => (a.room||'').localeCompare(b.room||'', undefined, { numeric: true, sensitivity: 'base' }));
 
     const tbody = document.getElementById('patient-tbody');
+
+    // Show archived banner
+    const existingBanner = document.getElementById('archived-banner');
+    if (existingBanner) existingBanner.remove();
+    if (showArchived) {
+      const banner = document.createElement('div');
+      banner.id = 'archived-banner';
+      banner.style.cssText = 'margin-bottom:1rem;padding:8px 14px;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.3);border-radius:8px;font-size:13px;color:#b45309;display:flex;align-items:center;gap:10px;';
+      banner.innerHTML = `<span>📦 Viewing archived patients — ${patients.filter(p=>p.archived).length} total</span>`;
+      document.querySelector('.table-wrap').insertAdjacentElement('beforebegin', banner);
+    }
+
     if (!list.length) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="13">No patients found.</td></tr>`;
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="13">${showArchived ? 'No archived patients.' : 'No patients found.'}</td></tr>`;
       return;
     }
     const genderCell = g => {
@@ -983,8 +1012,14 @@
     };
     tbody.innerHTML = list.map((p, i) => {
       const rowClass = p.category === 'SSR' ? 'row-ssr' : p.category === 'PAR' ? 'row-par' : '';
+      const actions = showArchived
+        ? `<button class="icon-btn" data-action="unarchive" data-id="${p.id}" title="Restore patient" style="font-size:13px;">♻️</button>
+           <button class="icon-btn del" data-action="delete" data-id="${p.id}" title="Delete permanently" style="font-size:15px;">🗑</button>`
+        : `<button class="icon-btn" data-action="edit" data-id="${p.id}" title="Edit patient">✏️</button>
+           <button class="icon-btn" data-action="archive" data-id="${p.id}" title="Archive patient" style="font-size:13px;">📦</button>
+           <button class="icon-btn del" data-action="delete" data-id="${p.id}" title="Delete patient" style="font-size:15px;">🗑</button>`;
       return `
-      <tr class="${rowClass}">
+      <tr class="${rowClass}${p.archived ? ' row-archived' : ''}">
         <td style="color:var(--text-muted);font-size:12px;">${i+1}</td>
         <td style="font-weight:500;">${esc(p.name)}</td>
         <td>${genderCell(p.gender)}</td>
@@ -997,12 +1032,7 @@
         <td style="font-size:12.5px;color:var(--text-secondary);">${esc(p.category)||'—'}</td>
         <td style="font-size:12.5px;color:var(--text-secondary);">${esc(p.details)||'—'}</td>
         <td style="text-align:center;font-weight:500;">${p.freq ? p.freq+'x/wk' : '—'}</td>
-        <td>
-          <div style="display:flex;gap:5px;align-items:center;">
-            <button class="icon-btn" data-action="edit" data-id="${p.id}" title="Edit patient">✏️</button>
-            <button class="icon-btn del" data-action="delete" data-id="${p.id}" title="Delete patient" style="font-size:15px;">🗑</button>
-          </div>
-        </td>
+        <td><div style="display:flex;gap:5px;align-items:center;">${actions}</div></td>
       </tr>`;
     }).join('');
   }
@@ -1071,6 +1101,7 @@
 
       // Low-cost bucket: patients with Low-cost OR ABM insurance assigned to this therapist
       const lowcostPats = patients.filter(p =>
+        !p.archived &&
         isLowCostIns(p) &&
         (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name) &&
         parseInt(p.freq)
@@ -1079,15 +1110,15 @@
 
       // Primary: assigned as primary AND NOT in the low-cost bucket
       const primaryPats   = patients.filter(p =>
-        p.primary === s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
+        !p.archived && p.primary === s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
       );
       // Secondary: assigned as secondary, not already primary, not in low-cost bucket
       const secondaryPats = patients.filter(p =>
-        p.secondary === s.name && p.primary !== s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
+        !p.archived && p.secondary === s.name && p.primary !== s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
       );
       // Tertiary: assigned as tertiary, not already primary/secondary, not in low-cost bucket
       const tertiaryPats  = patients.filter(p =>
-        p.tertiary === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
+        !p.archived && p.tertiary === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq) && !lowcostIds.has(p.id)
       );
 
       const primaryRows   = primaryPats.map(p => {
@@ -1500,6 +1531,23 @@
     }
     closePatientModal(); renderPatients();
   }
+  async function archivePatient(id) {
+    const idx = patients.findIndex(p => p.id === id);
+    if (idx === -1) return;
+    patients[idx].archived = true;
+    await savePatientRow(patients[idx]);
+    renderPatients();
+    showToast('Patient archived. View in 📦 Archived.');
+  }
+  async function unarchivePatient(id) {
+    const idx = patients.findIndex(p => p.id === id);
+    if (idx === -1) return;
+    patients[idx].archived = false;
+    await savePatientRow(patients[idx]);
+    renderPatients();
+    showToast('Patient restored to active list.');
+  }
+
   let pendingDeleteId = null;
 
   function deletePatient(id) {
@@ -1649,8 +1697,10 @@
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
     const id = btn.dataset.id;
-    if (btn.dataset.action === 'edit')   openPatientModal(id);
-    if (btn.dataset.action === 'delete') deletePatient(id);
+    if (btn.dataset.action === 'edit')      openPatientModal(id);
+    if (btn.dataset.action === 'delete')    deletePatient(id);
+    if (btn.dataset.action === 'archive')   archivePatient(id);
+    if (btn.dataset.action === 'unarchive') unarchivePatient(id);
   });
 
   // Event delegation for staff grid buttons
@@ -2165,7 +2215,7 @@
     staff.forEach(s => ensureTherapistSlot(s.id));
 
     const patientDays = {};   // patientId → Set of days already scheduled
-    const workload = patients.filter(p => parseInt(p.freq) > 0);
+    const workload = patients.filter(p => parseInt(p.freq) > 0 && !p.archived);
 
     const dayLoad = (tid, day) => (schedule[tid]?.[day]||[]).length;
 
