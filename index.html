@@ -2239,12 +2239,6 @@
       return;
     }
 
-    // Appointment guard — if therapist has an appointment this day, block scheduling
-    if (appointments[pickerDay]?.size > 0) {
-      const allOnAppt = eligible.every(p => appointments[pickerDay].has(p.id));
-      // Show appointment note in picker items (handled per-patient below)
-    }
-
     // Absent guard (full week or this specific day)
     if (absentIds.has(therapist.id) || isTherapistAbsentOnDay(therapist.id, pickerDay)) {
       list.innerHTML = `<div class="sched-picker-empty">${esc(therapist.name)} is marked absent${absentIds.has(therapist.id) ? ' this week' : ` on ${DAY_FULL[pickerDay]}`}.</div>`;
@@ -2630,12 +2624,18 @@
     });
     if (schedChanged) await saveSchedule();
 
-    // Save to Supabase
-    await fetch(`${SUPA_URL}/rest/v1/appointments`, {
+    // Save to Supabase — ignore if already exists (unique constraint)
+    const res = await fetch(`${SUPA_URL}/rest/v1/appointments`, {
       method: 'POST',
-      headers: { ...HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      headers: { ...HEADERS, 'Prefer': 'resolution=ignore-duplicates,return=minimal' },
       body: JSON.stringify({ patient_id: patientId, day, type }),
     });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('Appointment save error:', err);
+      showToast('⚠️ Could not save appointment. Please try again.');
+      return;
+    }
 
     renderApptDay();
     renderApptPicker();
@@ -2646,9 +2646,10 @@
 
   async function removeAppointment(patientId, day) {
     appointments[day].delete(patientId);
-    await fetch(`${SUPA_URL}/rest/v1/appointments?patient_id=eq.${encodeURIComponent(patientId)}&day=eq.${day}`, {
+    const res = await fetch(`${SUPA_URL}/rest/v1/appointments?patient_id=eq.${encodeURIComponent(patientId)}&day=eq.${day}`, {
       method: 'DELETE', headers: HEADERS,
     });
+    if (!res.ok) console.error('Remove appointment error:', await res.text());
     renderApptDay();
     renderApptPicker();
   }
@@ -2658,7 +2659,7 @@
       'This will remove all patients from all appointment and sick lists.',
       'Clear All', async () => {
         appointments = { mon: new Map(), tue: new Map(), wed: new Map(), thu: new Map(), fri: new Map() };
-        await fetch(`${SUPA_URL}/rest/v1/appointments?id=neq.null`, { method: 'DELETE', headers: HEADERS });
+        await fetch(`${SUPA_URL}/rest/v1/appointments?id=gte.0`, { method: 'DELETE', headers: HEADERS });
         renderApptDay();
         renderApptPicker();
         showToast('All entries cleared.');
