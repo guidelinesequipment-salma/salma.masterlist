@@ -606,35 +606,39 @@
     .caseload-header { padding: 0.875rem 1rem; }
     .caseload-name { font-size: 14px; }
 
-    /* ── Schedule ── */
-    .sched-wrap { border-radius: 10px; }
-    .sched-table { min-width: 0; }
-    /* Hide all day columns except selected on mobile */
+    /* ── Schedule — show ALL days, compact and scrollable ── */
+    .sched-wrap { border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .sched-table { min-width: 0; width: 100%; table-layout: fixed; }
+    /* Remove the day-hiding rules — all days visible */
     .sched-table th.day-header,
     .sched-table td.sched-day-cell,
     .sched-table td.sched-day-cell.off-day,
-    .sched-table td.sched-day-cell.day-absent { display: none; }
-    .sched-table th.day-header.mobile-active,
-    .sched-table td.sched-day-cell.mobile-active { display: table-cell; }
-    /* Mobile day selector */
-    .sched-mobile-days {
-      display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px;
-      -webkit-overflow-scrolling: touch; padding-bottom: 4px;
-    }
-    .sched-mobile-day-btn {
-      padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
-      background: var(--bg-card); color: var(--text-muted); font-size: 12.5px;
-      font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.15s;
-      font-family: 'DM Sans', sans-serif;
-    }
-    .sched-mobile-day-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-    .sched-therapist-cell { min-width: 120px; padding: 8px 10px; }
-    .sched-therapist-name { font-size: 12.5px; }
-    .sched-therapist-disc { font-size: 10px; }
-    .sched-slot { font-size: 11px; padding: 4px 6px; }
-    .absent-toggle { font-size: 10px; padding: 2px 6px; }
+    .sched-table td.sched-day-cell.day-absent { display: table-cell; }
+    /* Hide the mobile day selector since all days are visible */
+    .sched-mobile-days { display: none; }
+    /* Therapist column — narrow */
+    .sched-therapist-cell { width: 90px; min-width: 90px; max-width: 90px; padding: 6px 8px; }
+    .sched-therapist-name { font-size: 11px; white-space: normal; word-break: break-word; line-height: 1.3; }
+    .sched-therapist-disc { font-size: 9.5px; }
+    .absent-toggle { font-size: 9px; padding: 2px 5px; }
+    .absent-badge { font-size: 9px; }
+    /* Day columns — equal width, fill remaining space */
+    .sched-table th.day-header { min-width: 0; padding: 8px 4px; font-size: 9.5px; text-align:center; }
+    .sched-table td.sched-day-cell { min-width: 0; padding: 4px; }
+    /* Slot cards — very compact */
+    .sched-slot { font-size: 9.5px; padding: 3px 4px; margin-bottom: 3px; border-left-width: 3px; }
+    .sched-slot span { font-size: 8px; }
+    .sched-slot-remove { width: 14px; height: 14px; font-size: 10px; }
+    .sched-add-btn { font-size: 9.5px; padding: 3px 0; }
+    /* Day slot meter — compact */
     .sched-toolbar { gap: 8px; }
-    .sched-legend { gap: 8px; font-size: 11px; padding: 6px 10px; }
+    .sched-legend { gap: 6px; font-size: 10px; padding: 5px 8px; flex-wrap: wrap; }
+    .cat-dot { width: 7px; height: 7px; }
+    /* Slot meter in day cell */
+    .sched-day-cell > div:first-child { margin-bottom: 3px; }
+    .day-absent-label { font-size: 9px; }
+    .day-absent-btn { font-size: 9.5px; }
+    .day-toggle-absent { font-size: 8.5px; padding: 1px 5px; }
 
     /* ── Picker → bottom sheet on mobile ── */
     .sched-picker {
@@ -818,11 +822,11 @@
         <thead>
           <tr>
             <th>Therapist</th>
-            <th class="day-header">Monday</th>
-            <th class="day-header">Tuesday</th>
-            <th class="day-header">Wednesday</th>
-            <th class="day-header">Thursday</th>
-            <th class="day-header">Friday</th>
+            <th class="day-header">Mon</th>
+            <th class="day-header">Tue</th>
+            <th class="day-header">Wed</th>
+            <th class="day-header">Thu</th>
+            <th class="day-header">Fri</th>
           </tr>
         </thead>
         <tbody id="sched-tbody"></tbody>
