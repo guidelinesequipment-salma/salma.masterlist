@@ -2090,7 +2090,7 @@
     // Sort entries by priority (PAR first, Low-cost last)
     const sorted = entries
       .map(e => ({ e, pat: patients.find(p => p.id === e.patientId) }))
-      .filter(({ pat }) => !!pat)
+      .filter(({ pat }) => !!pat && !pat.archived)  // skip archived/deleted
       .sort((a, b) =>
         insurancePriority(a.pat.category || a.pat.insurance) -
         insurancePriority(b.pat.category || b.pat.insurance)
@@ -2202,10 +2202,13 @@
     if (!schedule[tid]) schedule[tid] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
   }
 
-  // All patient IDs scheduled on a given day across ALL therapists
+  // All active (non-archived) patient IDs scheduled on a given day across ALL therapists
   function getPatientDaySet(day) {
     const ids = new Set();
-    Object.values(schedule).forEach(s => (s[day]||[]).forEach(e => ids.add(e.patientId)));
+    Object.values(schedule).forEach(s => (s[day]||[]).forEach(e => {
+      const pat = patients.find(p => p.id === e.patientId);
+      if (pat && !pat.archived) ids.add(e.patientId);
+    }));
     return ids;
   }
 
@@ -2220,21 +2223,24 @@
     return 1;
   }
 
-  // Slot weight used by a therapist on a SPECIFIC DAY (sum of all patients' weights that day)
+  // Slot weight used by a therapist on a SPECIFIC DAY (active patients only)
   function getTherapistDaySlots(tid, day) {
     if (!schedule[tid]) return 0;
     return (schedule[tid][day] || []).reduce((total, e) => {
-      const pat = patients.find(p => p.id === e.patientId);
+      const pat = patients.find(p => p.id === e.patientId && !p.archived);
       return total + (pat ? getSlotWeight(pat) : 0);
     }, 0);
   }
 
-  // Total slot weight used by a therapist across the whole week (for recommendation engine only)
+  // Total slot weight used by a therapist across the whole week (active patients, for recommendation engine)
   function getTherapistUsedSlots(tid) {
     if (!schedule[tid]) return 0;
     const seen = new Set();
     DAYS.forEach(day => {
-      (schedule[tid][day] || []).forEach(e => seen.add(e.patientId));
+      (schedule[tid][day] || []).forEach(e => {
+        const pat = patients.find(p => p.id === e.patientId && !p.archived);
+        if (pat) seen.add(e.patientId);
+      });
     });
     return [...seen].reduce((total, pid) => {
       const pat = patients.find(p => p.id === pid);
@@ -2242,14 +2248,25 @@
     }, 0);
   }
 
-  // How many times a specific patient is already scheduled under a specific therapist this week
+  // How many times an active patient is scheduled under a therapist this week
   function getTherapistPatientCount(tid, patientId) {
     if (!schedule[tid]) return 0;
+    const pat = patients.find(p => p.id === patientId);
+    if (!pat || pat.archived) return 0;
     return DAYS.reduce((n, day) =>
       n + (schedule[tid][day]||[]).filter(e => e.patientId === patientId).length, 0);
   }
 
   // How many sessions this therapist is allowed to see this patient (from calcSessions)
+  // A therapist is "unassigned" if no patient lists them as primary/secondary/tertiary
+  function isUnassignedTherapist(therapistName) {
+    return !patients.some(p =>
+      p.primary === therapistName ||
+      p.secondary === therapistName ||
+      p.tertiary === therapistName
+    );
+  }
+
   function getAllowedSessions(therapist, patient) {
     const freq = parseInt(patient.freq) || 0;
     const dist = calcSessions(freq, !!patient.primary, !!patient.secondary, !!patient.tertiary);
@@ -2259,6 +2276,8 @@
     if (patient.insurance === 'Low-cost' &&
        (patient.primary === therapist.name || patient.secondary === therapist.name || patient.tertiary === therapist.name))
       return freq;
+    // Unassigned therapist: allow up to the full frequency
+    if (isUnassignedTherapist(therapist.name)) return freq;
     return 0;
   }
 
@@ -2267,7 +2286,8 @@
     if (patient.primary   === therapist.name) return 'primary';
     if (patient.secondary === therapist.name) return 'secondary';
     if (patient.tertiary  === therapist.name) return 'tertiary';
-    if (patient.insurance === 'Low-cost') return 'lowcost';
+    if (patient.insurance === 'Low-cost' || patient.insurance === 'ABM') return 'lowcost';
+    // Unassigned therapist manually covering this patient
     return 'primary';
   }
 
@@ -2322,7 +2342,7 @@
 
         const slots = entries.map((e, idx) => {
           const pat = patients.find(p => p.id === e.patientId);
-          if (!pat) return '';
+          if (!pat || pat.archived) return ''; // skip deleted or archived patients
           const role    = e.role || getPatientRole(s, pat);
           const allowed = getAllowedSessions(s, pat);
           const used    = getTherapistPatientCount(s.id, pat.id);
@@ -2346,11 +2366,22 @@
             </div>`;
         }).join('');
 
-        // Always show Add button (no hard cap block — manual booking is always allowed)
-        const canAdd = !isAbsent && patients.some(p => {
-          if (!parseInt(p.freq)) return false;
-          return p.primary===s.name || p.secondary===s.name || p.tertiary===s.name;
-        });
+        // Always show Add button for unassigned therapists; for assigned ones check their patient list
+        const hasAssigned = patients.some(p =>
+          !p.archived && parseInt(p.freq) &&
+          (p.primary===s.name || p.secondary===s.name || p.tertiary===s.name)
+        );
+        const canAdd = !isAbsent && (
+          !hasAssigned // unassigned therapist: always show
+          || patients.some(p => {
+            if (!parseInt(p.freq) || p.archived) return false;
+            const assigned = p.primary===s.name || p.secondary===s.name || p.tertiary===s.name;
+            if (!assigned) return false;
+            const allowed = getAllowedSessions(s, p);
+            const used    = getTherapistPatientCount(s.id, p.id);
+            return used < allowed;
+          })
+        );
 
         return `
           <td class="sched-day-cell">
@@ -2440,11 +2471,20 @@
       return;
     }
 
+    // Check if this therapist has ANY patients assigned (primary/secondary/tertiary)
+    const hasAssignedPatients = patients.some(p =>
+      p.primary === therapist.name ||
+      p.secondary === therapist.name ||
+      p.tertiary  === therapist.name
+    );
+
+    // Unassigned therapist → can pick any active patient
+    // Assigned therapist → can only pick their own patients
     const eligible = patients.filter(p =>
-      parseInt(p.freq) && (
-        p.primary   === therapist.name ||
-        p.secondary === therapist.name ||
-        p.tertiary  === therapist.name
+      !p.archived && parseInt(p.freq) && (
+        hasAssignedPatients
+          ? (p.primary === therapist.name || p.secondary === therapist.name || p.tertiary === therapist.name)
+          : true  // unassigned: all active patients eligible
       )
     );
 
@@ -2462,14 +2502,16 @@
     }
 
     list.innerHTML = filtered.map(p => {
-      const allowed       = getAllowedSessions(therapist, p);
-      const used          = getTherapistPatientCount(pickerTid, p.id);
+      const assigned  = p.primary === therapist.name || p.secondary === therapist.name || p.tertiary === therapist.name;
+      // For unassigned therapists: no session cap (use full freq as allowed)
+      const allowed   = assigned ? getAllowedSessions(therapist, p) : (parseInt(p.freq)||0);
+      const used      = getTherapistPatientCount(pickerTid, p.id);
       const alreadyHere   = dayPatients.has(p.id);
       const busyElsewhere = !alreadyHere && busyToday.has(p.id);
-      const sessMaxed     = used >= allowed;
+      const sessMaxed     = assigned && used >= allowed;
       const hasAppt       = !!(appointments[pickerDay]?.has(p.id));
       const disabled      = alreadyHere || busyElsewhere || sessMaxed || hasAppt;
-      const role          = getPatientRole(therapist, p);
+      const role          = assigned ? getPatientRole(therapist, p) : 'primary';
       const slotCost      = getSlotWeight(p);
       const wouldExceed   = (daySlots + slotCost) > SLOT_CAP;
 
