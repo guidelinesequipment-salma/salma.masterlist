@@ -523,8 +523,7 @@
     .btn { padding: 8px 14px; font-size: 13px; }
 
     /* ── Patient table → card list ── */
-    .table-wrap { border-radius: 10px; overflow: visible; background: transparent; border: none; }
-    .table-wrap table { display: none; }  /* hide desktop table */
+    .table-wrap { display: none; }
     .mobile-patient-cards { display: flex; flex-direction: column; gap: 10px; }
     .mobile-patient-card {
       background: var(--bg-card); border: 1px solid var(--border);
@@ -619,8 +618,10 @@
     .confirm-msg { font-size: 13px; }
   }
 
-  /* hide mobile cards on desktop */
-  .mobile-patient-cards { display: none; }
+  /* Mobile cards: hidden on desktop, shown on mobile via media query above */
+  @media (min-width: 769px) {
+    .mobile-patient-cards { display: none !important; }
+  }
 
   @media (max-width: 768px) {
     .form-grid { grid-template-columns: 1fr; }
@@ -2920,7 +2921,6 @@
     applyMobileSchedDay();
   }
   function applyMobileSchedDay() {
-    if (!isMobile()) return;
     document.querySelectorAll('#sched-tbody tr').forEach(row => {
       const cells = row.querySelectorAll('td');
       // cell 0 is therapist, cells 1-5 are days Mon-Fri
@@ -2940,7 +2940,6 @@
   function renderMobilePatientCards(list) {
     const container = document.getElementById('mobile-patient-cards');
     if (!container) return;
-    if (!isMobile()) { container.innerHTML = ''; return; }
 
     const gCell = g => {
       if (!g) return '';
