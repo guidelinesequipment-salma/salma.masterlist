@@ -1440,31 +1440,40 @@
     let grandPrimary=0, grandSecondary=0, grandTertiary=0, grandSessions=0, grandLowcost=0;
 
     const cards = staff.map(s => {
+      // Sort helper: custom ward order (Ward A → Ward B → ICU 1 → ICU 2), then room alphanumeric
+      const WARD_ORDER = { 'Ward A': 0, 'Ward B': 1, 'ICU 1': 2, 'ICU 2': 3 };
+      const sortByLocation = arr => [...arr].sort((a, b) => {
+        const wa = WARD_ORDER[a.ward] ?? 99;
+        const wb = WARD_ORDER[b.ward] ?? 99;
+        if (wa !== wb) return wa - wb;
+        return (a.room||'').localeCompare(b.room||'', undefined, { numeric: true, sensitivity: 'base' });
+      });
+
       const isLowCostIns = p => p.insurance === 'Low-cost' || p.insurance === 'ABM';
 
       // Low-cost bucket: ALL patients with Low-cost OR ABM insurance assigned to this therapist
-      const lowcostPats = patients.filter(p =>
+      const lowcostPats = sortByLocation(patients.filter(p =>
         !p.archived &&
         isLowCostIns(p) &&
         (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name) &&
         parseInt(p.freq)
-      );
+      ));
 
       // Primary: assigned as primary, NOT low-cost/ABM insurance
-      const primaryPats   = patients.filter(p =>
+      const primaryPats   = sortByLocation(patients.filter(p =>
         !p.archived && !isLowCostIns(p) &&
         p.primary === s.name && parseInt(p.freq)
-      );
+      ));
       // Secondary: assigned as secondary, not also primary, NOT low-cost/ABM insurance
-      const secondaryPats = patients.filter(p =>
+      const secondaryPats = sortByLocation(patients.filter(p =>
         !p.archived && !isLowCostIns(p) &&
         p.secondary === s.name && p.primary !== s.name && parseInt(p.freq)
-      );
+      ));
       // Tertiary: assigned as tertiary, not already primary/secondary, NOT low-cost/ABM insurance
-      const tertiaryPats  = patients.filter(p =>
+      const tertiaryPats  = sortByLocation(patients.filter(p =>
         !p.archived && !isLowCostIns(p) &&
         p.tertiary === s.name && p.primary !== s.name && p.secondary !== s.name && parseInt(p.freq)
-      );
+      ));
 
       const primaryRows   = primaryPats.map(p => {
         const hasS = !!p.secondary && staff.some(st => st.name === p.secondary);
@@ -2637,20 +2646,62 @@
     const patientDays = {};   // patientId → Set of days already scheduled
     const workload = patients.filter(p => parseInt(p.freq) > 0 && !p.archived);
 
-    const dayLoad = (tid, day) => (schedule[tid]?.[day]||[]).length;
+    // Day index helper
+    const dayIdx = d => DAYS.indexOf(d);
 
-    // Pick the lightest available working day for a therapist this patient hasn't been seen on
-    // Also skips days where the therapist has a per-day absence marked
-    const pickLightestDay = (tid, patId) => {
+    // Gap between two days (in day-index units)
+    const dayGap = (d1, d2) => Math.abs(dayIdx(d1) - dayIdx(d2));
+
+    // Pick the best available working day for a therapist this patient hasn't been seen on.
+    // Enforces:
+    //   - 2x/week: prefer days with ≥2 day gap from any already-used day (rest day rule)
+    //   - 3x/week: prefer Mon-Wed-Fri pattern; fall back to balanced otherwise
+    const pickBestDay = (tid, patId, sessionsNeeded, sessionsPlacedSoFar) => {
       const t = staff.find(s => s.id === tid);
       const workDays = t?.workDays || DAYS;
+      const usedDays = [...(patientDays[patId] || [])];
+
       const available = workDays.filter(d =>
         !patientDays[patId]?.has(d) &&
         !isTherapistAbsentOnDay(tid, d) &&
-        !(appointments[d]?.has(patId))  // skip days patient has an appointment
+        !(appointments[d]?.has(patId))
       );
       if (!available.length) return null;
-      available.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || DAYS.indexOf(a) - DAYS.indexOf(b));
+
+      // ── 3x/week: prefer Mon-Wed-Fri pattern ──
+      if (sessionsNeeded === 3) {
+        const mwf = ['mon', 'wed', 'fri'];
+        const mwfAvail = mwf.filter(d => available.includes(d));
+        if (mwfAvail.length > 0) {
+          // Pick next MWF slot in order
+          const nextMWF = mwfAvail[0];
+          return nextMWF;
+        }
+        // MWF not available — fall through to gap-aware logic
+      }
+
+      // ── 2x/week: prefer days with ≥2 gap from already-placed days ──
+      if (sessionsNeeded === 2) {
+        const withGap = available.filter(d =>
+          usedDays.length === 0 || usedDays.every(ud => dayGap(d, ud) >= 2)
+        );
+        if (withGap.length > 0) {
+          // Among days with gap, pick lightest load
+          withGap.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || dayIdx(a) - dayIdx(b));
+          return withGap[0];
+        }
+        // No day with ≥2 gap — try ≥1 gap
+        const with1Gap = available.filter(d =>
+          usedDays.length === 0 || usedDays.every(ud => dayGap(d, ud) >= 1)
+        );
+        if (with1Gap.length > 0) {
+          with1Gap.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || dayIdx(a) - dayIdx(b));
+          return with1Gap[0];
+        }
+      }
+
+      // ── Default: lightest day by load ──
+      available.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || dayIdx(a) - dayIdx(b));
       return available[0];
     };
 
@@ -2697,7 +2748,7 @@
       ensureTherapistSlot(tid);
       let placed = 0;
       while (placed < need) {
-        const day = pickLightestDay(tid, pat.id);
+        const day = pickBestDay(tid, pat.id, need, placed);
         if (!day) break;
         schedule[tid][day].push({ patientId: pat.id, role });
         patientDays[pat.id].add(day);
