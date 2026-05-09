@@ -1232,7 +1232,29 @@
     { key: 'OT',  label: 'Occupational Therapy',      icon: '🤲' },
     { key: 'SLP', label: 'Speech-Language Pathology', icon: '🗣️' },
   ];
-  const DAY_LABELS   = { mon:'M', tue:'T', wed:'W', thu:'Th', fri:'F' };
+  const DAY_LABELS  = { mon:'M', tue:'T', wed:'W', thu:'Th', fri:'F' };
+  const WARD_ORDER  = { 'Ward A': 0, 'Ward B': 1, 'ICU 1': 2, 'ICU 2': 3 };
+
+  // Reusable sort: Ward A → Ward B → ICU 1 → ICU 2, then room alphanumeric
+  const sortByLocation = arr => [...arr].sort((a, b) => {
+    const wa = WARD_ORDER[a.ward] ?? 99;
+    const wb = WARD_ORDER[b.ward] ?? 99;
+    if (wa !== wb) return wa - wb;
+    return (a.room||'').localeCompare(b.room||'', undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  // Low-cost insurance check
+  const isLowCostIns = p => p.insurance === 'Low-cost' || p.insurance === 'ABM';
+
+  // Initials from a name string
+  const initials = n => n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+
+  // Gender cell renderer
+  const genderCell = g => {
+    if (!g) return '—';
+    const label = g === 'male' ? '♂ M' : '♀ F';
+    return `<span class="gender-label" style="font-size:12.5px;font-weight:500;"><span class="gender-dot ${g}"></span>${label}</span>`;
+  };
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1345,13 +1367,9 @@
 
     if (!list.length) {
       tbody.innerHTML = `<tr class="empty-row"><td colspan="13">${showArchived ? 'No archived patients.' : 'No patients found.'}</td></tr>`;
+      renderMobilePatientCards(list);
       return;
     }
-    const genderCell = g => {
-      if (!g) return '—';
-      const label = g === 'male' ? '♂ M' : '♀ F';
-      return `<span class="gender-label" style="font-size:12.5px;font-weight:500;"><span class="gender-dot ${g}"></span>${label}</span>`;
-    };
     tbody.innerHTML = list.map((p, i) => {
       const rowClass = p.category === 'SSR' ? 'row-ssr' : p.category === 'PAR' ? 'row-par' : '';
       const actions = showArchived
@@ -1436,20 +1454,9 @@
     }
     empty.style.display = 'none';
 
-    const initials = n => n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
     let grandPrimary=0, grandSecondary=0, grandTertiary=0, grandSessions=0, grandLowcost=0;
 
     const cards = staff.map(s => {
-      // Sort helper: custom ward order (Ward A → Ward B → ICU 1 → ICU 2), then room alphanumeric
-      const WARD_ORDER = { 'Ward A': 0, 'Ward B': 1, 'ICU 1': 2, 'ICU 2': 3 };
-      const sortByLocation = arr => [...arr].sort((a, b) => {
-        const wa = WARD_ORDER[a.ward] ?? 99;
-        const wb = WARD_ORDER[b.ward] ?? 99;
-        if (wa !== wb) return wa - wb;
-        return (a.room||'').localeCompare(b.room||'', undefined, { numeric: true, sensitivity: 'base' });
-      });
-
-      const isLowCostIns = p => p.insurance === 'Low-cost' || p.insurance === 'ABM';
 
       // Low-cost bucket: ALL patients with Low-cost OR ABM insurance assigned to this therapist
       const lowcostPats = sortByLocation(patients.filter(p =>
@@ -1515,6 +1522,7 @@
       const discClass = s.discipline.toLowerCase();
       const genderStrip = s.gender ? `<div class="gender-strip ${s.gender}"></div>` : '';
 
+      // renderSection is local to each therapist card (captures s.id for unique section IDs)
       const renderSection = (rows, roleLabel, roleClass, sessTotal) => {
         if (!rows.length) return '';
         const sectionId = 'sec-' + s.id + '-' + roleClass;
