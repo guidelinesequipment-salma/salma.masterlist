@@ -474,11 +474,159 @@
   .sched-picker-item.disabled:hover { background:none; }
   .sched-picker-empty { padding:1rem; text-align:center; color:var(--text-muted); font-size:13px; }
 
-  @media (max-width: 700px) {
+  /* ════════════════════════════════════════
+     MOBILE RESPONSIVE — ≤ 768px
+  ════════════════════════════════════════ */
+  @media (max-width: 768px) {
+
+    /* ── Layout ── */
+    .container { padding: 0.875rem; }
+    body { padding-bottom: 70px; } /* space for bottom nav */
+
+    /* ── Header ── */
+    .header { height: 52px; padding: 0 1rem; }
+    .header-logo { width: 30px; height: 30px; font-size: 15px; margin-right: 8px; }
+    .header-title { font-size: 14px; }
+    .header-sub { display: none; }
+    .theme-toggle { width: 30px; height: 30px; font-size: 14px; }
+
+    /* ── Tabs → Bottom nav ── */
+    .tabs {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+      background: var(--bg-mid); padding: 0;
+      display: flex; overflow-x: auto; overflow-y: hidden;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.2);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      height: 60px; align-items: stretch;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab-btn {
+      flex: 1; min-width: 64px; padding: 6px 4px 4px;
+      font-size: 10px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px;
+      border-bottom: none; border-top: 3px solid transparent;
+      white-space: nowrap; letter-spacing: 0;
+    }
+    .tab-btn.active { border-top-color: var(--accent); border-bottom: none; }
+
+    /* ── Stats bar ── */
+    .stats-bar { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
+    .stat-card { padding: 0.625rem 0.75rem; border-radius: 10px; }
+    .stat-value { font-size: 20px; }
+    .stat-label { font-size: 10px; }
+
+    /* ── Toolbar ── */
+    .toolbar { gap: 8px; margin-bottom: 1rem; }
+    .search-wrap { min-width: 0; }
+    .search-input { font-size: 13px; }
+    .filter-select { font-size: 12px; padding: 8px 8px; }
+    .btn { padding: 8px 14px; font-size: 13px; }
+
+    /* ── Patient table → card list ── */
+    .table-wrap { border-radius: 10px; overflow: visible; background: transparent; border: none; }
+    .table-wrap table { display: none; }  /* hide desktop table */
+    .mobile-patient-cards { display: flex; flex-direction: column; gap: 10px; }
+    .mobile-patient-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 14px; position: relative;
+    }
+    .mobile-patient-card.row-ssr { border-left: 4px solid #f59e0b; }
+    .mobile-patient-card.row-par { border-left: 4px solid #f97316; }
+    .mpc-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+    .mpc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; font-size: 12.5px; color: var(--text-secondary); }
+    .mpc-actions { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .mpc-actions .icon-btn { flex: 1; width: auto; border-radius: 8px; font-size: 13px; padding: 6px; }
+
+    /* ── Ward filter banner ── */
+    #ward-filter-banner { font-size: 12px; padding: 6px 10px; }
+
+    /* ── Modals → full screen on mobile ── */
+    .modal-overlay { padding: 0; align-items: flex-end; }
+    .modal {
+      max-width: 100%; max-height: 95vh; border-radius: 20px 20px 0 0;
+      width: 100%; margin: 0;
+    }
+    .modal-header { padding: 1rem 1.25rem 0.75rem; }
+    .modal-body { padding: 1rem 1.25rem; }
+    .modal-footer { padding: 0.75rem 1.25rem 1.25rem; }
+    .confirm-modal { max-width: 100%; }
+
+    /* ── Forms ── */
     .form-grid { grid-template-columns: 1fr; }
     .form-grid.cols-3 { grid-template-columns: 1fr; }
     .form-group.span-2, .form-group.span-3 { grid-column: span 1; }
-    .container { padding: 1rem; }
+    .form-section-title { font-size: 10px; margin: 1rem 0 0.5rem; }
+    .rec-panel { font-size: 13px; }
+    .rec-item { padding: 8px 10px; gap: 8px; }
+    .rec-assign-btn { font-size: 11px; padding: 4px 8px; }
+
+    /* ── Staff cards ── */
+    .staff-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .staff-card { padding: 1rem; }
+
+    /* ── Caseload ── */
+    .caseload-grid { grid-template-columns: 1fr; gap: 12px; }
+    .cload-summary-bar { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .cload-sum-card { padding: 0.625rem 0.75rem; }
+    .cload-tot-val { font-size: 16px; }
+    .caseload-header { padding: 0.875rem 1rem; }
+    .caseload-name { font-size: 14px; }
+
+    /* ── Schedule ── */
+    .sched-wrap { border-radius: 10px; }
+    .sched-table { min-width: 0; }
+    /* Hide all day columns except selected on mobile */
+    .sched-table th.day-header,
+    .sched-table td.sched-day-cell,
+    .sched-table td.sched-day-cell.off-day,
+    .sched-table td.sched-day-cell.day-absent { display: none; }
+    .sched-table th.day-header.mobile-active,
+    .sched-table td.sched-day-cell.mobile-active { display: table-cell; }
+    /* Mobile day selector */
+    .sched-mobile-days {
+      display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px;
+      -webkit-overflow-scrolling: touch; padding-bottom: 4px;
+    }
+    .sched-mobile-day-btn {
+      padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--bg-card); color: var(--text-muted); font-size: 12.5px;
+      font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.15s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .sched-mobile-day-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .sched-therapist-cell { min-width: 120px; padding: 8px 10px; }
+    .sched-therapist-name { font-size: 12.5px; }
+    .sched-therapist-disc { font-size: 10px; }
+    .sched-slot { font-size: 11px; padding: 4px 6px; }
+    .absent-toggle { font-size: 10px; padding: 2px 6px; }
+    .sched-toolbar { gap: 8px; }
+    .sched-legend { gap: 8px; font-size: 11px; padding: 6px 10px; }
+
+    /* ── Picker → bottom sheet on mobile ── */
+    .sched-picker {
+      position: fixed; left: 0 !important; right: 0 !important; bottom: 70px !important;
+      top: auto !important; width: 100% !important; max-height: 50vh;
+      border-radius: 16px 16px 0 0; border-bottom: none;
+    }
+
+    /* ── Appointments ── */
+    .appt-grid { grid-template-columns: 1fr; gap: 12px; }
+    .appt-day-btn { padding: 6px 12px; font-size: 12px; }
+
+    /* ── Delete confirm ── */
+    .confirm-icon { font-size: 28px; }
+    .confirm-title { font-size: 15px; }
+    .confirm-msg { font-size: 13px; }
+  }
+
+  /* hide mobile cards on desktop */
+  .mobile-patient-cards { display: none; }
+
+  @media (max-width: 768px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid.cols-3 { grid-template-columns: 1fr; }
+    .form-group.span-2, .form-group.span-3 { grid-column: span 1; }
+    .container { padding: 0.875rem; }
     .caseload-grid { grid-template-columns: 1fr; }
   }
 </style>
@@ -562,6 +710,8 @@
         <tbody id="patient-tbody"></tbody>
       </table>
     </div>
+    <!-- Mobile card view (shown on small screens) -->
+    <div class="mobile-patient-cards" id="mobile-patient-cards"></div>
   </div>
 </div>
 
@@ -609,6 +759,14 @@
       </select>
       <button class="btn btn-ghost" onclick="clearSchedule()" style="margin-left:auto;">🗑 Clear Week</button>
       <button class="btn btn-primary" onclick="autoSchedule()">⚡ Auto-Schedule</button>
+    </div>
+    <!-- Mobile: day selector (shows one day at a time) -->
+    <div class="sched-mobile-days" id="sched-mobile-days">
+      <button class="sched-mobile-day-btn active" data-day="mon" onclick="selectSchedDay('mon',this)">Mon</button>
+      <button class="sched-mobile-day-btn" data-day="tue" onclick="selectSchedDay('tue',this)">Tue</button>
+      <button class="sched-mobile-day-btn" data-day="wed" onclick="selectSchedDay('wed',this)">Wed</button>
+      <button class="sched-mobile-day-btn" data-day="thu" onclick="selectSchedDay('thu',this)">Thu</button>
+      <button class="sched-mobile-day-btn" data-day="fri" onclick="selectSchedDay('fri',this)">Fri</button>
     </div>
     <div class="sched-legend" style="margin-bottom:1.25rem;">
       <span style="font-weight:600;color:var(--text-primary);font-size:12px;">Insurance Category:</span>
@@ -1129,6 +1287,7 @@
         <td><div style="display:flex;gap:5px;align-items:center;">${actions}</div></td>
       </tr>`;
     }).join('');
+    renderMobilePatientCards(list);
   }
 
   // ══════════════════════════════════════════
@@ -2750,6 +2909,92 @@
     if (btn.dataset.action === 'add-appt')    addAppointment(btn.dataset.pid, btn.dataset.day);
     if (btn.dataset.action === 'remove-appt') removeAppointment(btn.dataset.pid, btn.dataset.day);
   });
+  // ── Mobile utilities ──
+  const isMobile = () => window.innerWidth <= 768;
+
+  let schedMobileDay = 'mon';
+  function selectSchedDay(day, btn) {
+    schedMobileDay = day;
+    document.querySelectorAll('.sched-mobile-day-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyMobileSchedDay();
+  }
+  function applyMobileSchedDay() {
+    if (!isMobile()) return;
+    document.querySelectorAll('#sched-tbody tr').forEach(row => {
+      const cells = row.querySelectorAll('td');
+      // cell 0 is therapist, cells 1-5 are days Mon-Fri
+      DAYS.forEach((d, i) => {
+        if (cells[i + 1]) {
+          cells[i + 1].classList.toggle('mobile-active', d === schedMobileDay);
+        }
+      });
+    });
+    // Headers: th 0 = Therapist, th 1-5 = Mon-Fri
+    const headers = document.querySelectorAll('.sched-table th');
+    DAYS.forEach((d, i) => {
+      if (headers[i + 1]) headers[i + 1].classList.toggle('mobile-active', d === schedMobileDay);
+    });
+  }
+
+  function renderMobilePatientCards(list) {
+    const container = document.getElementById('mobile-patient-cards');
+    if (!container) return;
+    if (!isMobile()) { container.innerHTML = ''; return; }
+
+    const gCell = g => {
+      if (!g) return '';
+      return `<span class="gender-label" style="font-size:12px;font-weight:500;"><span class="gender-dot ${g}"></span>${g === 'male' ? '♂ M' : '♀ F'}</span>`;
+    };
+
+    if (!list.length) {
+      container.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:14px;">${showArchived ? 'No archived patients.' : 'No patients found.'}</div>`;
+      return;
+    }
+
+    container.innerHTML = list.map(p => {
+      const rowClass = p.category === 'SSR' ? 'row-ssr' : p.category === 'PAR' ? 'row-par' : '';
+      const actions = showArchived
+        ? `<button class="icon-btn" data-action="unarchive" data-id="${p.id}" style="flex:1;">♻️ Restore</button>
+           <button class="icon-btn del" data-action="delete" data-id="${p.id}" style="flex:1;">🗑 Delete</button>`
+        : `<button class="icon-btn" data-action="edit" data-id="${p.id}" style="flex:1;">✏️ Edit</button>
+           <button class="icon-btn" data-action="archive" data-id="${p.id}" style="flex:1;">📦</button>
+           <button class="icon-btn del" data-action="delete" data-id="${p.id}" style="flex:1;">🗑</button>`;
+      return `
+        <div class="mobile-patient-card ${rowClass}">
+          <div class="mpc-name">${esc(p.name)}</div>
+          <div class="mpc-row">
+            ${gCell(p.gender)} ${wardBadge(p.ward)}
+            ${p.room ? `<span style="font-family:'DM Mono',monospace;font-size:12px;">Rm ${esc(p.room)}</span>` : ''}
+            ${p.freq ? `<span style="font-weight:600;color:var(--accent);">${p.freq}x/wk</span>` : ''}
+          </div>
+          <div class="mpc-row">
+            ${p.primary ? `<span style="font-size:11.5px;"><span style="color:var(--text-muted);">1°</span> ${esc(p.primary)}</span>` : ''}
+            ${p.secondary ? `<span style="font-size:11.5px;"><span style="color:var(--text-muted);">2°</span> ${esc(p.secondary)}</span>` : ''}
+            ${p.tertiary ? `<span style="font-size:11.5px;"><span style="color:var(--text-muted);">3°</span> ${esc(p.tertiary)}</span>` : ''}
+          </div>
+          <div class="mpc-row">
+            ${insBadge(p.insurance)}
+            ${p.category ? `<span style="font-size:12px;color:var(--text-secondary);">${esc(p.category)}</span>` : ''}
+            ${p.details ? `<span style="font-size:12px;color:var(--text-muted);">${esc(p.details)}</span>` : ''}
+          </div>
+          <div class="mpc-actions">${actions}</div>
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('mobile-patient-cards').addEventListener('click', function(e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'edit')      openPatientModal(id);
+    if (btn.dataset.action === 'delete')    deletePatient(id);
+    if (btn.dataset.action === 'archive')   archivePatient(id);
+    if (btn.dataset.action === 'unarchive') unarchivePatient(id);
+  });
+
+  window.addEventListener('resize', () => { if (isMobile()) applyMobileSchedDay(); });
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
   }
