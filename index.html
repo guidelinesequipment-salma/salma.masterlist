@@ -2660,6 +2660,8 @@
       const t = staff.find(s => s.id === tid);
       const workDays = t?.workDays || DAYS;
       const usedDays = [...(patientDays[patId] || [])];
+      const pat = patients.find(p => p.id === patId);
+      const totalFreq = parseInt(pat?.freq) || sessionsNeeded; // total weekly sessions
 
       const available = workDays.filter(d =>
         !patientDays[patId]?.has(d) &&
@@ -2668,29 +2670,24 @@
       );
       if (!available.length) return null;
 
-      // ── 3x/week: prefer Mon-Wed-Fri pattern ──
-      if (sessionsNeeded === 3) {
+      // ── 3x/week total: prefer Mon-Wed-Fri pattern ──
+      if (totalFreq === 3) {
         const mwf = ['mon', 'wed', 'fri'];
         const mwfAvail = mwf.filter(d => available.includes(d));
-        if (mwfAvail.length > 0) {
-          // Pick next MWF slot in order
-          const nextMWF = mwfAvail[0];
-          return nextMWF;
-        }
-        // MWF not available — fall through to gap-aware logic
+        if (mwfAvail.length > 0) return mwfAvail[0];
+        // MWF not available — fall through to gap-aware
       }
 
-      // ── 2x/week: prefer days with ≥2 gap from already-placed days ──
-      if (sessionsNeeded === 2) {
+      // ── 2x/week total: prefer ≥2 day gap for rest day ──
+      if (totalFreq === 2) {
         const withGap = available.filter(d =>
           usedDays.length === 0 || usedDays.every(ud => dayGap(d, ud) >= 2)
         );
         if (withGap.length > 0) {
-          // Among days with gap, pick lightest load
           withGap.sort((a, b) => dayLoad(tid, a) - dayLoad(tid, b) || dayIdx(a) - dayIdx(b));
           return withGap[0];
         }
-        // No day with ≥2 gap — try ≥1 gap
+        // Fall back to ≥1 gap
         const with1Gap = available.filter(d =>
           usedDays.length === 0 || usedDays.every(ud => dayGap(d, ud) >= 1)
         );
