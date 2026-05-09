@@ -433,18 +433,25 @@
   /* ── Scheduling ── */
   .sched-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap; }
   .sched-wrap { overflow-x:auto; border-radius:14px; border:1px solid var(--border); background:var(--bg-card); -webkit-overflow-scrolling: touch; }
-  .sched-table { border-collapse:collapse; width:100%; min-width:1000px; }
+  .sched-table { border-collapse:collapse; table-layout:fixed; width:100%; min-width:960px; }
   .sched-table th {
     background: var(--th-bg); color: var(--text-on-dark);
     font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
-    padding:11px 14px; text-align:left; white-space:nowrap;
+    padding:11px 14px; text-align:left; white-space:nowrap; overflow:hidden;
   }
-  .sched-table th.day-header { text-align:center; min-width:160px; }
-  .sched-table td { padding:8px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .sched-table th:first-child { width:160px; }
+  .sched-table th.day-header { width:160px; text-align:center; }
+  .sched-table td { padding:8px; border-bottom:1px solid var(--border); vertical-align:top; overflow:hidden; }
   .sched-table tr:last-child td { border-bottom:none; }
   .sched-therapist-cell {
-    padding:10px 14px; background:var(--bg); border-right:2px solid var(--border);
-    min-width:160px; max-width:180px; vertical-align:middle; white-space:nowrap;
+    width:160px; padding:10px 14px; background:var(--bg); border-right:2px solid var(--border);
+    vertical-align:middle; overflow:hidden;
+  }
+  /* Truncate patient names in schedule slots */
+  .sched-slot-name {
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    flex:1; min-width:0; display:block;
+    cursor:default;
   }
   .sched-therapist-name { font-size:13.5px; font-weight:600; color:var(--text-primary); }
   .sched-therapist-disc { font-size:11px; color:var(--text-muted); margin-top:2px; }
@@ -652,32 +659,27 @@
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
-    /* Give table a minimum width so it scrolls rather than squishes */
     .sched-table {
-      min-width: 680px;  /* 100px therapist + 5 × 116px days */
+      min-width: 680px;
+      table-layout: fixed;
       width: max-content;
-      table-layout: auto;
     }
-    /* All day columns always visible */
     .sched-table th.day-header,
     .sched-table td.sched-day-cell,
     .sched-table td.sched-day-cell.off-day,
     .sched-table td.sched-day-cell.day-absent { display: table-cell; }
-    /* Hide mobile day selector — all days visible */
     .sched-mobile-days { display: none; }
-    /* Therapist column — fixed narrow width */
     .sched-therapist-cell {
-      width: 100px; min-width: 100px; max-width: 100px; padding: 6px 8px;
+      width: 90px; min-width: 90px; max-width: 90px; padding: 6px 8px; overflow: hidden;
     }
     .sched-therapist-name { font-size: 11px; white-space: normal; word-break: break-word; line-height: 1.3; }
     .sched-therapist-disc { font-size: 9.5px; }
     .absent-toggle { font-size: 9px; padding: 2px 5px; }
     .absent-badge { font-size: 9px; }
-    /* Day columns — fixed width so content fits */
     .sched-table th.day-header { width: 116px; min-width: 116px; padding: 8px 4px; font-size: 9.5px; text-align: center; }
-    .sched-table td.sched-day-cell { width: 116px; min-width: 116px; padding: 4px; }
-    /* Slot cards — compact */
+    .sched-table td.sched-day-cell { width: 116px; min-width: 116px; padding: 4px; overflow: hidden; }
     .sched-slot { font-size: 9.5px; padding: 3px 4px; margin-bottom: 3px; border-left-width: 3px; }
+    .sched-slot-name { font-size: 9.5px; }
     .sched-slot span { font-size: 8px; }
     .sched-slot-remove { width: 14px; height: 14px; font-size: 10px; }
     .sched-add-btn { font-size: 9.5px; padding: 3px 0; }
@@ -2418,7 +2420,7 @@
           return `
             <div class="sched-slot ${role} ${catClass}">
               ${catDot}
-              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">
+              <span class="sched-slot-name" title="${esc(pat.name)}">
                 ${esc(pat.name)}${badge}
               </span>
               <button class="sched-slot-remove" data-action="remove-slot"
