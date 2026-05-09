@@ -2647,10 +2647,9 @@
     const workload = patients.filter(p => parseInt(p.freq) > 0 && !p.archived);
 
     // Day index helper
-    const dayIdx = d => DAYS.indexOf(d);
-
-    // Gap between two days (in day-index units)
-    const dayGap = (d1, d2) => Math.abs(dayIdx(d1) - dayIdx(d2));
+    const dayIdx  = d => DAYS.indexOf(d);
+    const dayGap  = (d1, d2) => Math.abs(dayIdx(d1) - dayIdx(d2));
+    const dayLoad = (tid, day) => (schedule[tid]?.[day]||[]).length;
 
     // Pick the best available working day for a therapist this patient hasn't been seen on.
     // Enforces:
