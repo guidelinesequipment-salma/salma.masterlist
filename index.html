@@ -77,6 +77,46 @@
     --par-hover: rgba(249,115,22,0.15);
   }
 
+  /* ── Pink & White theme ── */
+  [data-theme="pink"] {
+    --accent: #e91e8c;
+    --accent-hover: #c4177a;
+    --accent-soft: rgba(233,30,140,0.08);
+    --accent-glow: rgba(233,30,140,0.15);
+    --bg: #fff0f6;
+    --bg-card: #ffffff;
+    --bg-mid: #e91e8c;
+    --bg-light: #c4177a;
+    --border: #f9c6e0;
+    --text-primary: #3d0028;
+    --text-secondary: #7a1050;
+    --text-muted: #c472a0;
+    --text-on-dark: rgba(255,255,255,0.95);
+    --text-on-dark-muted: rgba(255,255,255,0.6);
+    --sky: #fce4f3;
+    --th-bg: #e91e8c;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --modal-overlay: rgba(61,0,40,0.5);
+    --disc-pt-bg: #b5146d;
+    --disc-ot-bg: #065f46;
+    --disc-slp-bg: #1565a0;
+    --ssr-row: #fff3cd;
+    --ssr-hover: #ffe08a;
+    --par-row: #ffe5d0;
+    --par-hover: #ffc9a0;
+  }
+  /* Pink theme badge overrides — keep readable on pink bg */
+  [data-theme="pink"] .badge-ward-a  { background: #e0f2f1; color: #0f766e; }
+  [data-theme="pink"] .badge-ward-b  { background: #ede9fe; color: #6d28d9; }
+  [data-theme="pink"] .badge-icu-1   { background: #fef3c7; color: #92400e; }
+  [data-theme="pink"] .badge-icu-2   { background: #fee2e2; color: #991b1b; }
+  [data-theme="pink"] .role-pill.primary   { background: #fef3c7; color: #92400e; }
+  [data-theme="pink"] .role-pill.secondary { background: #e0f2f1; color: #0f766e; }
+  [data-theme="pink"] .role-pill.tertiary  { background: #ede9fe; color: #6d28d9; }
+  [data-theme="pink"] .stat-card { border-color: #f9c6e0; }
+  [data-theme="pink"] .table-wrap th { background: #e91e8c; }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; transition: background 0.2s, color 0.2s; }
 
@@ -607,35 +647,43 @@
     .caseload-name { font-size: 14px; }
 
     /* ── Schedule — show ALL days, compact and scrollable ── */
-    .sched-wrap { border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .sched-table { min-width: 0; width: 100%; table-layout: fixed; }
-    /* Remove the day-hiding rules — all days visible */
+    .sched-wrap {
+      border-radius: 10px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Give table a minimum width so it scrolls rather than squishes */
+    .sched-table {
+      min-width: 680px;  /* 100px therapist + 5 × 116px days */
+      width: max-content;
+      table-layout: auto;
+    }
+    /* All day columns always visible */
     .sched-table th.day-header,
     .sched-table td.sched-day-cell,
     .sched-table td.sched-day-cell.off-day,
     .sched-table td.sched-day-cell.day-absent { display: table-cell; }
-    /* Hide the mobile day selector since all days are visible */
+    /* Hide mobile day selector — all days visible */
     .sched-mobile-days { display: none; }
-    /* Therapist column — narrow */
-    .sched-therapist-cell { width: 90px; min-width: 90px; max-width: 90px; padding: 6px 8px; }
+    /* Therapist column — fixed narrow width */
+    .sched-therapist-cell {
+      width: 100px; min-width: 100px; max-width: 100px; padding: 6px 8px;
+    }
     .sched-therapist-name { font-size: 11px; white-space: normal; word-break: break-word; line-height: 1.3; }
     .sched-therapist-disc { font-size: 9.5px; }
     .absent-toggle { font-size: 9px; padding: 2px 5px; }
     .absent-badge { font-size: 9px; }
-    /* Day columns — equal width, fill remaining space */
-    .sched-table th.day-header { min-width: 0; padding: 8px 4px; font-size: 9.5px; text-align:center; }
-    .sched-table td.sched-day-cell { min-width: 0; padding: 4px; }
-    /* Slot cards — very compact */
+    /* Day columns — fixed width so content fits */
+    .sched-table th.day-header { width: 116px; min-width: 116px; padding: 8px 4px; font-size: 9.5px; text-align: center; }
+    .sched-table td.sched-day-cell { width: 116px; min-width: 116px; padding: 4px; }
+    /* Slot cards — compact */
     .sched-slot { font-size: 9.5px; padding: 3px 4px; margin-bottom: 3px; border-left-width: 3px; }
     .sched-slot span { font-size: 8px; }
     .sched-slot-remove { width: 14px; height: 14px; font-size: 10px; }
     .sched-add-btn { font-size: 9.5px; padding: 3px 0; }
-    /* Day slot meter — compact */
     .sched-toolbar { gap: 8px; }
     .sched-legend { gap: 6px; font-size: 10px; padding: 5px 8px; flex-wrap: wrap; }
     .cat-dot { width: 7px; height: 7px; }
-    /* Slot meter in day cell */
-    .sched-day-cell > div:first-child { margin-bottom: 3px; }
     .day-absent-label { font-size: 9px; }
     .day-absent-btn { font-size: 9.5px; }
     .day-toggle-absent { font-size: 8.5px; padding: 1px 5px; }
@@ -1970,18 +2018,26 @@
     renderStaff();
   }
 
+  const THEME_CYCLE = ['light', 'dark', 'pink'];
+  const THEME_ICONS = { light: '☀️', dark: '🌙', pink: '🌸' };
+  const THEME_TIPS  = { light: 'Light mode', dark: 'Dark mode (Black & Pink)', pink: 'Pink & White' };
+
   function toggleTheme() {
-    const html = document.documentElement;
-    const isDark = html.getAttribute('data-theme') === 'dark';
-    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-    document.getElementById('theme-toggle').textContent = isDark ? '☀️' : '🌙';
-    localStorage.setItem('rehab_theme', isDark ? 'light' : 'dark');
+    const html    = document.documentElement;
+    const current = html.getAttribute('data-theme') || 'light';
+    const next    = THEME_CYCLE[(THEME_CYCLE.indexOf(current) + 1) % THEME_CYCLE.length];
+    html.setAttribute('data-theme', next);
+    document.getElementById('theme-toggle').textContent = THEME_ICONS[next];
+    document.getElementById('theme-toggle').title = THEME_TIPS[next];
+    localStorage.setItem('rehab_theme', next);
   }
   // Apply saved theme on load
   (function() {
     const saved = localStorage.getItem('rehab_theme') || 'light';
     document.documentElement.setAttribute('data-theme', saved);
-    document.getElementById('theme-toggle').textContent = saved === 'dark' ? '🌙' : '☀️';
+    const btn = document.getElementById('theme-toggle');
+    btn.textContent = THEME_ICONS[saved] || '☀️';
+    btn.title = THEME_TIPS[saved] || '';
   })();
 
   function toggleSection(id) {
