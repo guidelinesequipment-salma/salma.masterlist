@@ -432,19 +432,19 @@
 
   /* ── Scheduling ── */
   .sched-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap; }
-  .sched-wrap { overflow-x:auto; border-radius:14px; border:1px solid var(--border); background:var(--bg-card); }
-  .sched-table { border-collapse:collapse; width:100%; min-width:800px; }
+  .sched-wrap { overflow-x:auto; border-radius:14px; border:1px solid var(--border); background:var(--bg-card); -webkit-overflow-scrolling: touch; }
+  .sched-table { border-collapse:collapse; width:100%; min-width:1000px; }
   .sched-table th {
     background: var(--th-bg); color: var(--text-on-dark);
     font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
     padding:11px 14px; text-align:left; white-space:nowrap;
   }
-  .sched-table th.day-header { text-align:center; min-width:150px; }
+  .sched-table th.day-header { text-align:center; min-width:160px; }
   .sched-table td { padding:8px; border-bottom:1px solid var(--border); vertical-align:top; }
   .sched-table tr:last-child td { border-bottom:none; }
   .sched-therapist-cell {
     padding:10px 14px; background:var(--bg); border-right:2px solid var(--border);
-    min-width:160px; vertical-align:middle;
+    min-width:160px; max-width:180px; vertical-align:middle; white-space:nowrap;
   }
   .sched-therapist-name { font-size:13.5px; font-weight:600; color:var(--text-primary); }
   .sched-therapist-disc { font-size:11px; color:var(--text-muted); margin-top:2px; }
