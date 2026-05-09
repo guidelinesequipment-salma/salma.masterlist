@@ -481,7 +481,7 @@
 
     /* ── Layout ── */
     .container { padding: 0.875rem; }
-    body { padding-bottom: 70px; } /* space for bottom nav */
+    body { padding-bottom: 68px; } /* space for bottom nav */
 
     /* ── Header ── */
     .header { height: 52px; padding: 0 1rem; }
@@ -494,20 +494,55 @@
     .tabs {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
       background: var(--bg-mid); padding: 0;
-      display: flex; overflow-x: auto; overflow-y: hidden;
+      display: flex; overflow-x: hidden; overflow-y: hidden;
       box-shadow: 0 -2px 12px rgba(0,0,0,0.2);
       border-top: 1px solid rgba(255,255,255,0.08);
-      height: 60px; align-items: stretch;
-      -webkit-overflow-scrolling: touch;
+      align-items: stretch;
     }
-    .tab-btn {
-      flex: 1; min-width: 64px; padding: 6px 4px 4px;
-      font-size: 10px; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 3px;
-      border-bottom: none; border-top: 3px solid transparent;
-      white-space: nowrap; letter-spacing: 0;
+    /* Portrait: icon only, compact */
+    @media (max-width: 768px) and (orientation: portrait) {
+      .tabs { height: 60px; }
+      .tab-btn {
+        flex: 1; padding: 6px 2px 4px; font-size: 0; /* hide original text */
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 3px;
+        border-bottom: none; border-top: 3px solid transparent;
+        position: relative;
+      }
+      .tab-btn::before {
+        content: attr(data-icon);
+        font-size: 22px; line-height: 1;
+      }
+      .tab-btn::after {
+        content: attr(data-label);
+        font-size: 9px; color: inherit; font-family: 'DM Sans', sans-serif;
+        font-weight: 500; letter-spacing: 0.01em;
+        white-space: nowrap; overflow: hidden;
+        max-width: 56px; text-overflow: ellipsis;
+      }
+      .tab-btn.active { border-top-color: var(--accent); border-bottom: none; }
     }
-    .tab-btn.active { border-top-color: var(--accent); border-bottom: none; }
+    /* Landscape: icon + short label */
+    @media (max-width: 768px) and (orientation: landscape) {
+      .tabs { height: 52px; }
+      .tab-btn {
+        flex: 1; padding: 4px 6px; font-size: 0; /* hide original text */
+        display: flex; flex-direction: row;
+        align-items: center; justify-content: center; gap: 5px;
+        border-bottom: none; border-top: 3px solid transparent;
+      }
+      .tab-btn::before {
+        content: attr(data-icon);
+        font-size: 17px; line-height: 1; flex-shrink: 0;
+      }
+      .tab-btn::after {
+        content: attr(data-label);
+        font-size: 11px; color: inherit; font-family: 'DM Sans', sans-serif;
+        font-weight: 500; white-space: nowrap;
+      }
+      .tab-btn.active { border-top-color: var(--accent); border-bottom: none; }
+      body { padding-bottom: 60px; }
+    }
 
     /* ── Stats bar ── */
     .stats-bar { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
@@ -644,11 +679,11 @@
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active"  onclick="switchTab('patients',this)">📋 Patient List</button>
-  <button class="tab-btn"         onclick="switchTab('staff',this)">👥 Staff Directory</button>
-  <button class="tab-btn"         onclick="switchTab('caseload',this)">📊 Caseload Distribution</button>
-  <button class="tab-btn"         onclick="switchTab('schedule',this)">📅 Patient Scheduling</button>
-  <button class="tab-btn"         onclick="switchTab('appointments',this)">🏥 Appointment / Sick</button>
+  <button class="tab-btn active"  onclick="switchTab('patients',this)"     data-icon="📋" data-label="Patients">📋 Patient List</button>
+  <button class="tab-btn"         onclick="switchTab('staff',this)"         data-icon="👥" data-label="Staff">👥 Staff Directory</button>
+  <button class="tab-btn"         onclick="switchTab('caseload',this)"      data-icon="📊" data-label="Caseload">📊 Caseload Distribution</button>
+  <button class="tab-btn"         onclick="switchTab('schedule',this)"      data-icon="📅" data-label="Schedule">📅 Patient Scheduling</button>
+  <button class="tab-btn"         onclick="switchTab('appointments',this)"  data-icon="🏥" data-label="Appt/Sick">🏥 Appointment / Sick</button>
 </div>
 
 <!-- ═══ PATIENTS ═══ -->
