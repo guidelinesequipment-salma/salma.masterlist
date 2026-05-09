@@ -2644,10 +2644,48 @@
       return placed;
     };
 
+    // Helper: find the patient's assigned OT (primary, secondary, or tertiary)
+    // who has at least 2 available working days — for SSR priority rule
+    const findAssignedOTforSSR = (pat) => {
+      const assignedNames = [pat.primary, pat.secondary, pat.tertiary].filter(Boolean);
+      const isFemale = pat.gender === 'female';
+
+      const otCandidates = assignedNames
+        .map(name => staff.find(s => s.name === name && s.discipline === 'OT'))
+        .filter(s => {
+          if (!s) return false;
+          if (absentIds.has(s.id)) return false;
+          if (isFemale && s.gender === 'male') return false;
+          // Must have at least 2 working days available (not absent)
+          const workDays = s.workDays || DAYS;
+          const availDays = workDays.filter(d => !isTherapistAbsentOnDay(s.id, d));
+          return availDays.length >= 2;
+        });
+
+      if (!otCandidates.length) return null;
+      // Prefer least-loaded OT if multiple assigned
+      otCandidates.sort((a, b) => getTherapistUsedSlots(a.id) - getTherapistUsedSlots(b.id));
+      return otCandidates[0];
+    };
+
     workload.forEach(pat => {
       patientDays[pat.id] = patientDays[pat.id] || new Set();
       const freq = parseInt(pat.freq);
       const dist = calcSessions(freq, !!pat.primary, !!pat.secondary, !!pat.tertiary);
+
+      // ── SSR Priority Rule ──
+      // If the patient is SSR and has an assigned OT with ≥2 available working days,
+      // schedule ALL sessions through that OT first (regardless of primary/secondary/tertiary role).
+      // If the OT can only partially cover, fall through to normal chain for remaining sessions.
+      if (pat.category === 'SSR') {
+        const otTherapist = findAssignedOTforSSR(pat);
+        if (otTherapist) {
+          const placed = placeSessions(otTherapist.id, pat, 'primary', freq);
+          if (placed >= freq) return; // fully placed — skip normal chain
+          // Partially placed — normal chain handles remaining (patientDays already updated)
+        }
+        // No qualifying assigned OT — fall through to normal assignment chain
+      }
 
       const primaryT   = pat.primary   ? staff.find(s => s.name === pat.primary)   : null;
       const secondaryT = pat.secondary ? staff.find(s => s.name === pat.secondary) : null;
