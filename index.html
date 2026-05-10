@@ -2355,6 +2355,8 @@
     if (patient.insurance === 'Low-cost' &&
        (patient.primary === therapist.name || patient.secondary === therapist.name || patient.tertiary === therapist.name))
       return freq;
+    // OT and SLP can be manually assigned to any patient — allow up to full frequency
+    if (therapist.discipline === 'OT' || therapist.discipline === 'SLP') return freq;
     // Unassigned therapist: allow up to the full frequency
     if (isUnassignedTherapist(therapist.name)) return freq;
     return 0;
@@ -2445,13 +2447,15 @@
             </div>`;
         }).join('');
 
-        // Always show Add button for unassigned therapists; for assigned ones check their patient list
+        // Always show Add button for unassigned therapists and OT/SLP; for assigned PT check their patient list
         const hasAssigned = patients.some(p =>
           !p.archived && parseInt(p.freq) &&
           (p.primary===s.name || p.secondary===s.name || p.tertiary===s.name)
         );
+        const isOtOrSlp = s.discipline === 'OT' || s.discipline === 'SLP';
         const canAdd = !isAbsent && (
-          !hasAssigned // unassigned therapist: always show
+          isOtOrSlp // OT and SLP can always add any patient
+          || !hasAssigned // unassigned therapist: always show
           || patients.some(p => {
             if (!parseInt(p.freq) || p.archived) return false;
             const assigned = p.primary===s.name || p.secondary===s.name || p.tertiary===s.name;
@@ -2557,13 +2561,18 @@
       p.tertiary  === therapist.name
     );
 
+    const isOtOrSlp = therapist.discipline === 'OT' || therapist.discipline === 'SLP';
+
+    // OT and SLP → can pick any active patient regardless of assignment
     // Unassigned therapist → can pick any active patient
-    // Assigned therapist → can only pick their own patients
+    // Assigned PT → can only pick their own patients
     const eligible = patients.filter(p =>
       !p.archived && parseInt(p.freq) && (
-        hasAssignedPatients
-          ? (p.primary === therapist.name || p.secondary === therapist.name || p.tertiary === therapist.name)
-          : true  // unassigned: all active patients eligible
+        isOtOrSlp
+          ? true  // OT/SLP: all active patients eligible
+          : hasAssignedPatients
+            ? (p.primary === therapist.name || p.secondary === therapist.name || p.tertiary === therapist.name)
+            : true  // unassigned: all active patients eligible
       )
     );
 
