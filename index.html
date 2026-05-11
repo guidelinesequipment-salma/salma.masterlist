@@ -847,6 +847,8 @@
         <option value="">All Disciplines</option>
         <option>PT</option><option>OT</option><option>SLP</option>
       </select>
+      <button class="btn btn-ghost" id="sched-undo-btn" onclick="undoSchedule()" style="display:none;" title="Undo last clear or auto-schedule">↩ Undo</button>
+      <button class="btn btn-ghost" onclick="openPresetModal()" title="Save or load schedule presets">📋 Presets</button>
       <button class="btn btn-ghost" onclick="clearSchedule()" style="margin-left:auto;">🗑 Clear Week</button>
       <button class="btn btn-primary" onclick="autoSchedule()">⚡ Auto-Schedule</button>
     </div>
@@ -929,6 +931,33 @@
         </div>
         <div id="appt-picker"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PRESET MODAL ═══ -->
+<div class="modal-overlay" id="preset-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title">📋 Schedule Presets</div>
+      <button class="modal-close" onclick="closePresetModal()">×</button>
+    </div>
+    <div class="modal-body" style="padding:1.25rem 1.5rem;">
+      <!-- Save new preset -->
+      <div style="margin-bottom:1.25rem;">
+        <div class="form-section-title" style="margin-top:0;">Save Current Schedule as Preset</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="form-input" id="preset-name-input" type="text" placeholder="e.g. Week 1 Template" style="flex:1;">
+          <button class="btn btn-primary" onclick="savePreset()" style="white-space:nowrap;">💾 Save</button>
+        </div>
+      </div>
+      <!-- Preset list -->
+      <div class="form-section-title">Saved Presets</div>
+      <div id="preset-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div id="preset-empty" style="color:var(--text-muted);font-size:13.5px;text-align:center;padding:2rem 0;">No presets saved yet.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closePresetModal()">Close</button>
     </div>
   </div>
 </div>
@@ -2436,12 +2465,15 @@
           const catDot = catClass
             ? `<span class="cat-dot ${catClass}" title="${(pat.category||pat.insurance||'').toUpperCase()}" style="flex-shrink:0;"></span>`
             : '';
+          const isPinned = manualSlots.has(`${s.id}|${day}|${pat.id}`);
+          const pinBadge = isPinned ? `<span title="Manually assigned — protected from auto-schedule" style="font-size:9px;opacity:0.75;flex-shrink:0;">📌</span>` : '';
           return `
             <div class="sched-slot ${role} ${catClass}">
               ${catDot}
               <span class="sched-slot-name" title="${esc(pat.name)}">
                 ${esc(pat.name)}${badge}
               </span>
+              ${pinBadge}
               <button class="sched-slot-remove" data-action="remove-slot"
                 data-tid="${s.id}" data-day="${day}" data-idx="${idx}" title="Remove">×</button>
             </div>`;
@@ -2646,21 +2678,155 @@
   }
 
   // ── Auto-Schedule ──
+  // Tracks which slots were manually added by the user (not by auto-schedule)
+  // Key: `${therapistId}|${day}|${patientId}`
+  const manualSlots = new Set();
+
+  // Snapshot for undo (stored as deep-cloned schedule + manual slots set)
+  let scheduleUndoSnapshot = null;
+  let manualSlotsUndoSnapshot = null;
+
+  function takeUndoSnapshot() {
+    scheduleUndoSnapshot = JSON.parse(JSON.stringify(schedule));
+    manualSlotsUndoSnapshot = new Set(manualSlots);
+    document.getElementById('sched-undo-btn').style.display = '';
+  }
+
+  function undoSchedule() {
+    if (!scheduleUndoSnapshot) return;
+    schedule = scheduleUndoSnapshot;
+    manualSlots.clear();
+    if (manualSlotsUndoSnapshot) manualSlotsUndoSnapshot.forEach(k => manualSlots.add(k));
+    scheduleUndoSnapshot = null;
+    manualSlotsUndoSnapshot = null;
+    document.getElementById('sched-undo-btn').style.display = 'none';
+    saveSchedule().then(() => renderSchedule());
+    showToast('↩ Schedule restored.');
+  }
+
+  // ── Presets (stored in localStorage) ──
+  function getPresets() {
+    try { return JSON.parse(localStorage.getItem('rehab_sched_presets') || '[]'); } catch { return []; }
+  }
+  function savePresets(arr) { localStorage.setItem('rehab_sched_presets', JSON.stringify(arr)); }
+
+  function openPresetModal() {
+    document.getElementById('preset-modal').classList.add('open');
+    document.getElementById('preset-name-input').value = '';
+    renderPresetList();
+  }
+  function closePresetModal() { document.getElementById('preset-modal').classList.remove('open'); }
+
+  function renderPresetList() {
+    const presets = getPresets();
+    const list  = document.getElementById('preset-list');
+    const empty = document.getElementById('preset-empty');
+    if (!presets.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    list.innerHTML = presets.map((p, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-card);">
+        <span style="font-size:18px;">📋</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13.5px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.name)}</div>
+          <div style="font-size:11px;color:var(--text-muted);">Saved ${new Date(p.savedAt).toLocaleDateString()} &mdash; ${p.slotCount} slot${p.slotCount!==1?'s':''}</div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="loadPreset(${i})">⬇ Load</button>
+        <button class="icon-btn del" onclick="deletePreset(${i})" title="Delete preset">🗑</button>
+      </div>`).join('');
+  }
+
+  function savePreset() {
+    const name = document.getElementById('preset-name-input').value.trim();
+    if (!name) { showToast('⚠️ Enter a preset name first.'); return; }
+    const slotCount = Object.values(schedule).reduce((n, days) =>
+      n + Object.values(days).reduce((m, arr) => m + arr.length, 0), 0);
+    const presets = getPresets();
+    presets.unshift({ name, schedule: JSON.parse(JSON.stringify(schedule)), manualSlots: [...manualSlots], savedAt: Date.now(), slotCount });
+    savePresets(presets);
+    renderPresetList();
+    showToast(`✅ Preset "${name}" saved.`);
+    document.getElementById('preset-name-input').value = '';
+  }
+
+  function loadPreset(idx) {
+    const presets = getPresets();
+    const p = presets[idx];
+    if (!p) return;
+    openSchedConfirm('📋', `Load Preset: ${p.name}`,
+      'This will replace the current schedule with the saved preset. Your current schedule will be available via Undo.',
+      'Load Preset',
+      async () => {
+        takeUndoSnapshot();
+        schedule = JSON.parse(JSON.stringify(p.schedule));
+        manualSlots.clear();
+        (p.manualSlots || []).forEach(k => manualSlots.add(k));
+        // Ensure all current staff have a slot entry
+        staff.forEach(s => ensureTherapistSlot(s.id));
+        await saveSchedule();
+        renderSchedule();
+        closePresetModal();
+        showToast(`📋 Preset "${p.name}" loaded.`);
+      }
+    );
+  }
+
+  function deletePreset(idx) {
+    const presets = getPresets();
+    const name = presets[idx]?.name || 'this preset';
+    openSchedConfirm('🗑️', 'Delete Preset',
+      `Delete "${name}"? This cannot be undone.`,
+      'Delete',
+      () => {
+        presets.splice(idx, 1);
+        savePresets(presets);
+        renderPresetList();
+        showToast('Preset deleted.');
+      }
+    );
+  }
+
+  document.getElementById('preset-modal').addEventListener('click', function(e) { if (e.target === this) closePresetModal(); });
+
   function autoSchedule() {
     if (!staff.length || !patients.length) return;
     openSchedConfirm(
       '⚡', 'Auto-Schedule Week',
-      'This will replace the current schedule with an auto-generated one based on session frequencies.',
+      'This will fill the schedule automatically based on session frequencies. Manually assigned slots will be preserved.',
       'Auto-Schedule',
       _runAutoSchedule
     );
   }
 
   async function _runAutoSchedule() {
-    schedule = {};
+    takeUndoSnapshot();
+
+    // ── Preserve manually-assigned slots ──
+    // Build a fresh schedule seeded with only the manual slots
+    const preserved = {};
+    const preservedPatientDays = {}; // patientId → Set<day> (days already locked by manual slots)
+    staff.forEach(s => {
+      preserved[s.id] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
+    });
+    manualSlots.forEach(key => {
+      const [tid, day, patientId] = key.split('|');
+      if (!preserved[tid]) preserved[tid] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
+      const existingEntry = (scheduleUndoSnapshot?.[tid]?.[day] || schedule[tid]?.[day] || [])
+        .find(e => e.patientId === patientId);
+      if (existingEntry) {
+        preserved[tid][day].push({ ...existingEntry });
+        if (!preservedPatientDays[patientId]) preservedPatientDays[patientId] = new Set();
+        preservedPatientDays[patientId].add(day);
+      }
+    });
+
+    schedule = preserved;
     staff.forEach(s => ensureTherapistSlot(s.id));
 
-    const patientDays = {};   // patientId → Set of days already scheduled
+    const patientDays = { ...preservedPatientDays };   // patientId → Set of days already scheduled
+    // Convert plain arrays from JSON clone back to Sets
+    Object.keys(patientDays).forEach(pid => {
+      if (!(patientDays[pid] instanceof Set)) patientDays[pid] = new Set(patientDays[pid]);
+    });
     const workload = patients.filter(p => parseInt(p.freq) > 0 && !p.archived);
 
     // Day index helper
@@ -2799,6 +2965,10 @@
       const freq = parseInt(pat.freq);
       const dist = calcSessions(freq, !!pat.primary, !!pat.secondary, !!pat.tertiary);
 
+      // Count sessions already placed by manual slots for this patient
+      const manualCount = (patientDays[pat.id] instanceof Set ? patientDays[pat.id].size : 0);
+      if (manualCount >= freq) return; // fully covered by manual slots — skip auto-scheduling
+
       // ── SSR Priority Rule ──
       // If the patient is SSR and has an assigned OT with ≥2 available working days,
       // schedule ALL sessions through that OT first (regardless of primary/secondary/tertiary role).
@@ -2893,14 +3063,16 @@
   function clearSchedule() {
     openSchedConfirm(
       '🗑️', 'Clear Week Schedule',
-      'This will remove all scheduled sessions for the entire week.',
+      'This will remove all scheduled sessions for the entire week. You can undo this immediately after.',
       'Clear Schedule',
       _runClearSchedule
     );
   }
 
   async function _runClearSchedule() {
+    takeUndoSnapshot();
     schedule = {};
+    manualSlots.clear();
     staff.forEach(s => ensureTherapistSlot(s.id));
     await saveSchedule();
     renderSchedule();
@@ -2966,6 +3138,8 @@
     const rmBtn = e.target.closest('[data-action="remove-slot"]');
     if (rmBtn) {
       const { tid, day, idx } = rmBtn.dataset;
+      const removed = schedule[tid][day][parseInt(idx)];
+      if (removed) manualSlots.delete(`${tid}|${day}|${removed.patientId}`);
       schedule[tid][day].splice(parseInt(idx), 1);
       saveSchedule().then(() => renderSchedule()); return;
     }
@@ -2989,6 +3163,7 @@
     if (used >= allowed) return;
 
     schedule[pickerTid][pickerDay].push({ patientId: pid, role });
+    manualSlots.add(`${pickerTid}|${pickerDay}|${pid}`);
     saveSchedule().then(() => { closePicker(); renderSchedule(); });
   });
   // ══════════════════════════════════════════
