@@ -430,6 +430,19 @@
   .btn-danger { background: var(--red); color: #fff; }
   .btn-danger:hover { opacity: 0.88; }
 
+  /* ── Closed day ── */
+  .sched-day-cell.closed-day { background: repeating-linear-gradient(135deg,transparent,transparent 6px,rgba(99,102,241,0.04) 6px,rgba(99,102,241,0.04) 12px); }
+  .day-closed-label { font-size:10px; color:#6366f1; font-weight:600; text-align:center; padding:2px 0 1px; }
+  .day-action-row { display:flex; gap:3px; margin-top:4px; }
+  .day-action-btn {
+    flex:1; padding:2px 0; border-radius:5px; font-size:10px; font-weight:600;
+    border:1px solid var(--border); background:none; color:var(--text-muted);
+    cursor:pointer; transition:all 0.15s; white-space:nowrap; text-align:center;
+  }
+  .day-action-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .day-action-btn.close-btn.active { background:rgba(99,102,241,0.1); border-color:#6366f1; color:#6366f1; }
+  .day-action-btn.clear-btn:hover { border-color:var(--red); color:var(--red); }
+
   /* ── Scheduling ── */
   .sched-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap; }
   .sched-wrap { overflow-x:auto; border-radius:14px; border:1px solid var(--border); background:var(--bg-card); -webkit-overflow-scrolling: touch; }
@@ -2152,6 +2165,8 @@
   // Absent therapist IDs — runtime only, not persisted
   const absentIds  = new Set();   // full-week on leave
   const absentDays = new Map();   // per-day: Map<therapistId, Set<day>>
+  // Closed days — auto-schedule won't add patients here (runtime only, not persisted)
+  const closedDays = new Map();   // Map<therapistId, Set<day>>
 
   function toggleAbsent(tid) {
     if (absentIds.has(tid)) absentIds.delete(tid);
@@ -2165,6 +2180,26 @@
     if (days.has(day)) days.delete(day);
     else days.add(day);
     renderSchedule();
+  }
+
+  function toggleClosedDay(tid, day) {
+    if (!closedDays.has(tid)) closedDays.set(tid, new Set());
+    const days = closedDays.get(tid);
+    if (days.has(day)) days.delete(day);
+    else days.add(day);
+    renderSchedule();
+  }
+
+  function isDayClosed(tid, day) {
+    return closedDays.has(tid) && closedDays.get(tid).has(day);
+  }
+
+  function clearTherapistDay(tid, day) {
+    if (!schedule[tid] || !schedule[tid][day] || !schedule[tid][day].length) return;
+    // Remove manual slot markers for cleared entries
+    schedule[tid][day].forEach(e => manualSlots.delete(`${tid}|${day}|${e.patientId}`));
+    schedule[tid][day] = [];
+    saveSchedule().then(() => renderSchedule());
   }
 
   function isTherapistAbsentOnDay(tid, day) {
@@ -2381,12 +2416,9 @@
     if (patient.primary   === therapist.name) return dist.p;
     if (patient.secondary === therapist.name) return dist.s;
     if (patient.tertiary  === therapist.name) return dist.t;
-    if (patient.insurance === 'Low-cost' &&
-       (patient.primary === therapist.name || patient.secondary === therapist.name || patient.tertiary === therapist.name))
-      return freq;
     // OT and SLP can be manually assigned to any patient — allow up to full frequency
     if (therapist.discipline === 'OT' || therapist.discipline === 'SLP') return freq;
-    // Unassigned therapist: allow up to the full frequency
+    // Unassigned therapist (no patients at all): allow up to the full frequency
     if (isUnassignedTherapist(therapist.name)) return freq;
     return 0;
   }
@@ -2499,11 +2531,11 @@
         );
 
         return `
-          <td class="sched-day-cell">
+          <td class="sched-day-cell${isDayClosed(s.id, day) ? ' closed-day' : ''}">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:4px;">
               <div style="flex:1;">
                 <div style="display:flex;justify-content:space-between;font-size:9.5px;color:${slotColor};font-weight:600;margin-bottom:2px;">
-                  <span>Slots</span><span>${daySlots.toFixed(daySlots % 1 ? 1 : 0)}/${SLOT_CAP}${isOverCap ? ' ⚠' : ''}</span>
+                  <span>Slots</span><span>${daySlots.toFixed(daySlots % 1 ? 1 : 0)}/${SLOT_CAP}${isOverCap ? ' ⚠' : ''}${isDayClosed(s.id, day) ? ' 🔒' : ''}</span>
                 </div>
                 <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;">
                   <div style="height:100%;width:${slotPct}%;background:${slotColor};border-radius:2px;transition:width 0.2s;"></div>
@@ -2513,7 +2545,20 @@
                 Absent
               </button>
             </div>
+            ${isDayClosed(s.id, day) ? `<div class="day-closed-label">🔒 Closed to auto-schedule</div>` : ''}
             ${slots}
+            <div class="day-action-row">
+              <button class="day-action-btn close-btn${isDayClosed(s.id, day) ? ' active' : ''}"
+                data-action="toggle-close-day" data-tid="${s.id}" data-day="${day}"
+                title="${isDayClosed(s.id, day) ? 'Re-open for auto-scheduling' : 'Close — auto-schedule will not add patients here'}">
+                ${isDayClosed(s.id, day) ? '🔓 Open' : '🔒 Close'}
+              </button>
+              <button class="day-action-btn clear-btn"
+                data-action="clear-day" data-tid="${s.id}" data-day="${day}"
+                title="Remove all patients from this day">
+                🗑 Clear
+              </button>
+            </div>
             ${canAdd ? `<button class="sched-add-btn" data-action="open-picker"
               data-tid="${s.id}" data-day="${day}">+ Add patient</button>` : ''}
           </td>`;
@@ -2697,10 +2742,12 @@
     schedule = scheduleUndoSnapshot;
     manualSlots.clear();
     if (manualSlotsUndoSnapshot) manualSlotsUndoSnapshot.forEach(k => manualSlots.add(k));
+    // Null out snapshots immediately to prevent double-undo during async save
     scheduleUndoSnapshot = null;
     manualSlotsUndoSnapshot = null;
     document.getElementById('sched-undo-btn').style.display = 'none';
-    saveSchedule().then(() => renderSchedule());
+    renderSchedule();
+    saveSchedule();
     showToast('↩ Schedule restored.');
   }
 
@@ -2798,6 +2845,8 @@
   }
 
   async function _runAutoSchedule() {
+    // Capture current schedule BEFORE takeUndoSnapshot so we can read manual entries from it
+    const preAutoSchedule = JSON.parse(JSON.stringify(schedule));
     takeUndoSnapshot();
 
     // ── Preserve manually-assigned slots ──
@@ -2810,8 +2859,7 @@
     manualSlots.forEach(key => {
       const [tid, day, patientId] = key.split('|');
       if (!preserved[tid]) preserved[tid] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
-      const existingEntry = (scheduleUndoSnapshot?.[tid]?.[day] || schedule[tid]?.[day] || [])
-        .find(e => e.patientId === patientId);
+      const existingEntry = (preAutoSchedule[tid]?.[day] || []).find(e => e.patientId === patientId);
       if (existingEntry) {
         preserved[tid][day].push({ ...existingEntry });
         if (!preservedPatientDays[patientId]) preservedPatientDays[patientId] = new Set();
@@ -2838,7 +2886,7 @@
     // Enforces:
     //   - 2x/week: prefer days with ≥2 day gap from any already-used day (rest day rule)
     //   - 3x/week: prefer Mon-Wed-Fri pattern; fall back to balanced otherwise
-    const pickBestDay = (tid, patId, sessionsNeeded, sessionsPlacedSoFar) => {
+    const pickBestDay = (tid, patId, sessionsNeeded) => {
       const t = staff.find(s => s.id === tid);
       const workDays = t?.workDays || DAYS;
       const usedDays = [...(patientDays[patId] || [])];
@@ -2848,6 +2896,7 @@
       const available = workDays.filter(d =>
         !patientDays[patId]?.has(d) &&
         !isTherapistAbsentOnDay(tid, d) &&
+        !isDayClosed(tid, d) &&
         !(appointments[d]?.has(patId))
       );
       if (!available.length) return null;
@@ -2891,7 +2940,7 @@
       if (!t) return false;
       if (absentIds.has(t.id)) return false;
       const workDays = t.workDays || DAYS;
-      const hasAvailableDay = workDays.some(d => !isTherapistAbsentOnDay(t.id, d));
+      const hasAvailableDay = workDays.some(d => !isTherapistAbsentOnDay(t.id, d) && !isDayClosed(t.id, d));
       if (!hasAvailableDay) return false;
       return true;
     };
@@ -2927,7 +2976,7 @@
       ensureTherapistSlot(tid);
       let placed = 0;
       while (placed < need) {
-        const day = pickBestDay(tid, pat.id, need, placed);
+        const day = pickBestDay(tid, pat.id, need);
         if (!day) break;
         schedule[tid][day].push({ patientId: pat.id, role });
         patientDays[pat.id].add(day);
@@ -3129,6 +3178,27 @@
     // Toggle per-day absent
     const dayAbsBtn = e.target.closest('[data-action="toggle-day-absent"]');
     if (dayAbsBtn) { toggleDayAbsent(dayAbsBtn.dataset.tid, dayAbsBtn.dataset.day); return; }
+
+    // Toggle closed day (blocks auto-schedule)
+    const closeBtn = e.target.closest('[data-action="toggle-close-day"]');
+    if (closeBtn) { toggleClosedDay(closeBtn.dataset.tid, closeBtn.dataset.day); return; }
+
+    // Clear a single therapist's day
+    const clearDayBtn = e.target.closest('[data-action="clear-day"]');
+    if (clearDayBtn) {
+      const { tid, day } = clearDayBtn.dataset;
+      const count = (schedule[tid]?.[day] || []).filter(e => {
+        const p = patients.find(x => x.id === e.patientId);
+        return p && !p.archived;
+      }).length;
+      if (!count) return;
+      openSchedConfirm('🗑️', 'Clear Day',
+        `Remove all ${count} patient${count > 1 ? 's' : ''} from this therapist's ${DAY_FULL[day]}?`,
+        'Clear Day',
+        () => clearTherapistDay(tid, day)
+      );
+      return;
+    }
 
     // Redistribute single day
     const redayBtn = e.target.closest('[data-action="redistribute-day"]');
