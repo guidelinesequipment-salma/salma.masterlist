@@ -3110,9 +3110,12 @@
   }
 
   function clearSchedule() {
+    const hasClosedDays = closedDays.size > 0 && [...closedDays.values()].some(s => s.size > 0);
     openSchedConfirm(
       '🗑️', 'Clear Week Schedule',
-      'This will remove all scheduled sessions for the entire week. You can undo this immediately after.',
+      hasClosedDays
+        ? 'This will remove all scheduled sessions for the entire week, except days marked as Closed. You can undo this immediately after.'
+        : 'This will remove all scheduled sessions for the entire week. You can undo this immediately after.',
       'Clear Schedule',
       _runClearSchedule
     );
@@ -3120,9 +3123,27 @@
 
   async function _runClearSchedule() {
     takeUndoSnapshot();
-    schedule = {};
-    manualSlots.clear();
-    staff.forEach(s => ensureTherapistSlot(s.id));
+
+    // Build a new schedule that preserves only closed-day slots
+    const preserved = {};
+    staff.forEach(s => {
+      preserved[s.id] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
+      DAYS.forEach(day => {
+        if (isDayClosed(s.id, day)) {
+          // Keep existing slots for this closed day
+          preserved[s.id][day] = (schedule[s.id]?.[day] || []).slice();
+        }
+        // else: leave as empty array (cleared)
+      });
+    });
+
+    // Remove manual slot markers only for slots that were actually cleared
+    manualSlots.forEach(key => {
+      const [tid, day] = key.split('|');
+      if (!isDayClosed(tid, day)) manualSlots.delete(key);
+    });
+
+    schedule = preserved;
     await saveSchedule();
     renderSchedule();
   }
