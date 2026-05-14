@@ -720,8 +720,10 @@
 
     /* ── Picker → bottom sheet on mobile ── */
     .sched-picker {
-      position: fixed; left: 0 !important; right: 0 !important; bottom: 70px !important;
-      top: auto !important; width: 100% !important; max-height: 55vh;
+      position: fixed !important;
+      left: 0 !important; right: 0 !important;
+      bottom: 70px !important; top: auto !important;
+      width: 100% !important; max-height: 55vh !important;
       border-radius: 16px 16px 0 0; border-bottom: none;
     }
 
@@ -2626,13 +2628,24 @@
     filterPicker();
     const panel   = document.getElementById('picker-panel');
     const overlay = document.getElementById('picker-overlay');
-    // Position: fixed top-right just below the toolbar
-    const toolbar = document.querySelector('#page-schedule .sched-toolbar');
-    const toolbarRect = toolbar ? toolbar.getBoundingClientRect() : { bottom: 70 };
-    panel.style.top  = (toolbarRect.bottom + 8) + 'px';
-    panel.style.left = '';
+
+    // Show first so we can measure, then position
     panel.style.display = 'flex';
     overlay.classList.add('open');
+
+    // Always anchor to top-right of the viewport just below the nav bar,
+    // with max-height clamped to remaining viewport space so it never overflows.
+    const nav  = document.querySelector('.nav');
+    const navH = nav ? nav.getBoundingClientRect().bottom : 60;
+    const GAP  = 10;
+    const topPx = navH + GAP;
+    const maxH  = window.innerHeight - topPx - GAP;
+    panel.style.top       = topPx + 'px';
+    panel.style.right     = '18px';
+    panel.style.left      = '';
+    panel.style.bottom    = '';
+    panel.style.maxHeight = maxH + 'px';
+
     document.getElementById('picker-search').focus();
   }
 
