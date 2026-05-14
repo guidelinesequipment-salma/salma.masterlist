@@ -515,16 +515,31 @@
   .sched-picker-overlay { position:fixed; inset:0; z-index:300; display:none; }
   .sched-picker-overlay.open { display:block; }
   .sched-picker {
-    position:fixed; background:var(--bg-card); border:1px solid var(--border);
-    border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.18);
-    width:260px; max-height:320px; overflow-y:auto; z-index:301; padding:6px;
+    position:fixed; right:18px; background:var(--bg-card); border:1px solid var(--border);
+    border-radius:14px; box-shadow:0 8px 32px rgba(0,0,0,0.18);
+    width:290px; max-height:calc(100vh - 120px); display:flex; flex-direction:column;
+    z-index:301; overflow:hidden;
   }
+  .sched-picker-header {
+    padding:10px 12px 8px; border-bottom:1px solid var(--border); flex-shrink:0;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .sched-picker-title {
+    font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase;
+    letter-spacing:0.05em; display:flex; align-items:center; justify-content:space-between;
+  }
+  .sched-picker-close {
+    background:none; border:none; cursor:pointer; font-size:16px; color:var(--text-muted);
+    line-height:1; padding:0; transition:color 0.15s;
+  }
+  .sched-picker-close:hover { color:var(--text-primary); }
   .sched-picker-search {
     width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:7px;
     background:var(--bg); color:var(--text-primary); font-family:'DM Sans',sans-serif;
-    font-size:13px; outline:none; margin-bottom:6px;
+    font-size:13px; outline:none; box-sizing:border-box;
   }
   .sched-picker-search:focus { border-color:var(--accent); }
+  .sched-picker-body { overflow-y:auto; flex:1; padding:4px; }
   .sched-picker-item {
     padding:7px 10px; border-radius:7px; cursor:pointer; font-size:13px;
     color:var(--text-primary); display:flex; align-items:center; gap:8px;
@@ -706,7 +721,7 @@
     /* ── Picker → bottom sheet on mobile ── */
     .sched-picker {
       position: fixed; left: 0 !important; right: 0 !important; bottom: 70px !important;
-      top: auto !important; width: 100% !important; max-height: 50vh;
+      top: auto !important; width: 100% !important; max-height: 55vh;
       border-radius: 16px 16px 0 0; border-bottom: none;
     }
 
@@ -975,11 +990,19 @@
   </div>
 </div>
 
-<!-- Patient picker dropdown (shared) -->
+<!-- Patient picker panel (docked top-right) -->
 <div class="sched-picker-overlay" id="picker-overlay" onclick="closePicker()"></div>
 <div class="sched-picker" id="picker-panel" style="display:none;">
-  <input class="sched-picker-search" id="picker-search" type="text" placeholder="Search patient…" oninput="filterPicker()">
-  <div id="picker-list"></div>
+  <div class="sched-picker-header">
+    <div class="sched-picker-title">
+      <span id="picker-panel-label">Add Patient</span>
+      <button class="sched-picker-close" onclick="closePicker()" title="Close">×</button>
+    </div>
+    <input class="sched-picker-search" id="picker-search" type="text" placeholder="Search patient…" oninput="filterPicker()">
+  </div>
+  <div class="sched-picker-body">
+    <div id="picker-list"></div>
+  </div>
 </div>
 
 <!-- ═══ PATIENT MODAL ═══ -->
@@ -2594,13 +2617,21 @@
   function openPicker(tid, day, anchorEl) {
     pickerTid = tid; pickerDay = day;
     document.getElementById('picker-search').value = '';
+    // Update context label: show therapist name + day
+    const therapist = staff.find(s => s.id === tid);
+    const label = therapist
+      ? `${esc(therapist.name)} · ${DAY_FULL[day] || day}`
+      : 'Add Patient';
+    document.getElementById('picker-panel-label').textContent = label;
     filterPicker();
     const panel   = document.getElementById('picker-panel');
     const overlay = document.getElementById('picker-overlay');
-    const rect    = anchorEl.getBoundingClientRect();
-    panel.style.display = 'block';
-    panel.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-    panel.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 270) + 'px';
+    // Position: fixed top-right just below the toolbar
+    const toolbar = document.querySelector('#page-schedule .sched-toolbar');
+    const toolbarRect = toolbar ? toolbar.getBoundingClientRect() : { bottom: 70 };
+    panel.style.top  = (toolbarRect.bottom + 8) + 'px';
+    panel.style.left = '';
+    panel.style.display = 'flex';
     overlay.classList.add('open');
     document.getElementById('picker-search').focus();
   }
