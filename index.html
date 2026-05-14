@@ -41,10 +41,14 @@
     --disc-ot-bg: #064e3b;
     --disc-slp-bg: #0d3d6e;
     /* row highlights */
-    --ssr-row: #fefce8;
-    --ssr-hover: #fef08a;
-    --par-row: #fff7ed;
-    --par-hover: #fed7aa;
+    --ssr-row:     #f0fdf4;   /* green tint  — SSR */
+    --ssr-hover:   #bbf7d0;
+    --ltc-row:     #fefce8;   /* yellow tint — LTC */
+    --ltc-hover:   #fef08a;
+    --lowcost-row: #fdf2f8;   /* pink tint   — Low-cost */
+    --lowcost-hover:#fce7f3;
+    --par-row:     #fff7ed;   /* orange tint — PAR (unchanged) */
+    --par-hover:   #fed7aa;
   }
 
   /* ── Dark mode (black & pink) ── */
@@ -71,10 +75,14 @@
     --disc-pt-bg: #1e0808;
     --disc-ot-bg: #081e0f;
     --disc-slp-bg: #080f1e;
-    --ssr-row: rgba(234,179,8,0.08);
-    --ssr-hover: rgba(234,179,8,0.15);
-    --par-row: rgba(249,115,22,0.08);
-    --par-hover: rgba(249,115,22,0.15);
+    --ssr-row:      rgba(34,197,94,0.08);   /* green  — SSR */
+    --ssr-hover:    rgba(34,197,94,0.15);
+    --ltc-row:      rgba(234,179,8,0.08);   /* yellow — LTC */
+    --ltc-hover:    rgba(234,179,8,0.15);
+    --lowcost-row:  rgba(236,72,153,0.08);  /* pink   — Low-cost */
+    --lowcost-hover:rgba(236,72,153,0.14);
+    --par-row:      rgba(249,115,22,0.08);
+    --par-hover:    rgba(249,115,22,0.15);
   }
 
   /* ── Pink & White theme ── */
@@ -101,10 +109,14 @@
     --disc-pt-bg: #b5146d;
     --disc-ot-bg: #065f46;
     --disc-slp-bg: #1565a0;
-    --ssr-row: #fff3cd;
-    --ssr-hover: #ffe08a;
-    --par-row: #ffe5d0;
-    --par-hover: #ffc9a0;
+    --ssr-row:      #dcfce7;   /* green  — SSR */
+    --ssr-hover:    #bbf7d0;
+    --ltc-row:      #fff3cd;   /* yellow — LTC */
+    --ltc-hover:    #ffe08a;
+    --lowcost-row:  #fce4f3;   /* pink   — Low-cost */
+    --lowcost-hover:#f9c6e0;
+    --par-row:      #ffe5d0;
+    --par-hover:    #ffc9a0;
   }
   /* Pink theme badge overrides — keep readable on pink bg */
   [data-theme="pink"] .badge-ward-a  { background: #e0f2f1; color: #0f766e; }
@@ -171,9 +183,13 @@
   .table-wrap td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text-primary); }
   .table-wrap tr:last-child td { border-bottom: none; }
   .table-wrap tr:hover td { background: var(--sky); }
-  .table-wrap tr.row-ssr td { background: var(--ssr-row); }
+  .table-wrap tr.row-ssr td     { background: var(--ssr-row); }
   .table-wrap tr.row-ssr:hover td { background: var(--ssr-hover); }
-  .table-wrap tr.row-par td { background: var(--par-row); }
+  .table-wrap tr.row-ltc td     { background: var(--ltc-row); }
+  .table-wrap tr.row-ltc:hover td { background: var(--ltc-hover); }
+  .table-wrap tr.row-lowcost td { background: var(--lowcost-row); }
+  .table-wrap tr.row-lowcost:hover td { background: var(--lowcost-hover); }
+  .table-wrap tr.row-par td     { background: var(--par-row); }
   .table-wrap tr.row-par:hover td { background: var(--par-hover); }
   .table-wrap .empty-row td { text-align: center; color: var(--text-muted); padding: 3rem; font-size: 14px; }
 
@@ -430,6 +446,117 @@
   .btn-danger { background: var(--red); color: #fff; }
   .btn-danger:hover { opacity: 0.88; }
 
+  /* ── All Patients tab ── */
+  .ap-legend-dot { width:10px;height:10px;border-radius:50%;display:inline-block;vertical-align:middle; }
+  .ap-wrap { overflow-x:auto; border-radius:14px; border:1px solid var(--border); background:var(--bg-card); -webkit-overflow-scrolling:touch; }
+  .ap-table { border-collapse:collapse; table-layout:fixed; width:100%; min-width:860px; }
+  .ap-table th {
+    background:var(--th-bg); color:var(--text-on-dark);
+    font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
+    padding:11px 10px; text-align:left; white-space:nowrap;
+  }
+  .ap-table th.ap-name-col { width:200px; }
+  .ap-table th:not(.ap-name-col) { text-align:center; }
+  .ap-table td { padding:6px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  .ap-table tr:last-child td { border-bottom:none; }
+  /* Row colors per category */
+  .ap-table tr.row-ssr td     { background:var(--ssr-row); }
+  .ap-table tr.row-ssr:hover td { background:var(--ssr-hover); }
+  .ap-table tr.row-ltc td     { background:var(--ltc-row); }
+  .ap-table tr.row-ltc:hover td { background:var(--ltc-hover); }
+  .ap-table tr.row-lowcost td { background:var(--lowcost-row); }
+  .ap-table tr.row-lowcost:hover td { background:var(--lowcost-hover); }
+  .ap-table tr.row-par td     { background:var(--par-row); }
+  .ap-table tr.row-par:hover td { background:var(--par-hover); }
+  .ap-name-cell {
+    font-size:13px; font-weight:500; color:var(--text-primary);
+    display:flex; align-items:center; gap:7px;
+  }
+  .ap-missing-dot {
+    width:8px; height:8px; border-radius:50%; background:var(--red);
+    flex-shrink:0; animation:pulse-red 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-red {
+    0%,100% { opacity:1; } 50% { opacity:0.3; }
+  }
+  .ap-missing-count {
+    font-size:10px; font-weight:700; color:var(--red);
+    background:rgba(220,38,38,0.1); border:1px solid rgba(220,38,38,0.25);
+    border-radius:10px; padding:1px 6px; white-space:nowrap;
+  }
+  .ap-day-cell {
+    text-align:center; min-width:120px; position:relative;
+  }
+  .ap-slot {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 8px; border-radius:20px; font-size:11.5px; font-weight:600;
+    cursor:pointer; transition:all 0.15s; max-width:100%; overflow:hidden;
+    white-space:nowrap; text-overflow:ellipsis; border:1px solid transparent;
+    margin:2px auto;
+  }
+  .ap-slot.primary   { background:rgba(234,179,8,0.15);  border-color:rgba(234,179,8,0.35);  color:var(--text-primary); }
+  .ap-slot.secondary { background:rgba(13,148,136,0.15); border-color:rgba(13,148,136,0.35); color:var(--text-primary); }
+  .ap-slot.tertiary  { background:rgba(124,58,237,0.15); border-color:rgba(124,58,237,0.35); color:var(--text-primary); }
+  .ap-slot.lowcost   { background:rgba(236,72,153,0.12); border-color:rgba(236,72,153,0.3);  color:var(--text-primary); }
+  .ap-slot:hover { filter:brightness(0.92); }
+  .ap-slot-remove {
+    width:14px; height:14px; border-radius:50%; border:none;
+    background:rgba(0,0,0,0.12); color:var(--text-muted);
+    font-size:10px; cursor:pointer; flex-shrink:0; line-height:1;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .ap-slot-remove:hover { background:var(--red); color:#fff; }
+  .ap-add-btn {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%;
+    border:1.5px dashed var(--border); background:none;
+    color:var(--text-muted); font-size:14px; cursor:pointer;
+    transition:all 0.15s; line-height:1;
+  }
+  .ap-add-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .ap-appt-badge {
+    display:inline-block; font-size:10px; padding:1px 7px; border-radius:10px; font-weight:600;
+    background:rgba(37,99,235,0.1); color:#1d4ed8;
+    border:1px solid rgba(37,99,235,0.2);
+  }
+  [data-theme="dark"] .ap-appt-badge { background:rgba(96,165,250,0.12); color:#60a5fa; }
+  .ap-sick-badge {
+    display:inline-block; font-size:10px; padding:1px 7px; border-radius:10px; font-weight:600;
+    background:rgba(220,38,38,0.1); color:var(--red);
+    border:1px solid rgba(220,38,38,0.2);
+  }
+  /* ── All Patients picker ── */
+  .ap-picker-overlay { position:fixed;inset:0;z-index:300;display:none; }
+  .ap-picker-overlay.open { display:block; }
+  .ap-picker {
+    position:fixed; background:var(--bg-card); border:1px solid var(--border);
+    border-radius:14px; box-shadow:0 8px 32px rgba(0,0,0,0.18);
+    width:280px; display:flex; flex-direction:column; z-index:301; overflow:hidden;
+  }
+  .ap-picker-header {
+    padding:10px 12px 8px; border-bottom:1px solid var(--border); flex-shrink:0;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .ap-picker-title {
+    font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase;
+    letter-spacing:0.05em; display:flex; align-items:center; justify-content:space-between;
+  }
+  .ap-picker-search {
+    width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:7px;
+    background:var(--bg); color:var(--text-primary); font-family:'DM Sans',sans-serif;
+    font-size:13px; outline:none; box-sizing:border-box;
+  }
+  .ap-picker-search:focus { border-color:var(--accent); }
+  .ap-picker-body { overflow-y:auto; flex:1; padding:4px; max-height:300px; }
+  .ap-picker-item {
+    padding:7px 10px; border-radius:7px; cursor:pointer; font-size:13px;
+    color:var(--text-primary); display:flex; align-items:center; gap:8px;
+  }
+  .ap-picker-item:hover { background:var(--sky); }
+  .ap-picker-item.disabled { color:var(--text-muted); cursor:not-allowed; opacity:0.55; }
+  .ap-picker-item.disabled:hover { background:none; }
+  .ap-picker-empty { padding:1rem; text-align:center; color:var(--text-muted); font-size:13px; }
+
   /* ── Closed day ── */
   .sched-day-cell.closed-day { background: repeating-linear-gradient(135deg,transparent,transparent 6px,rgba(99,102,241,0.04) 6px,rgba(99,102,241,0.04) 12px); }
   .day-closed-label { font-size:10px; color:#6366f1; font-weight:600; text-align:center; padding:2px 0 1px; }
@@ -639,8 +766,10 @@
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 12px; padding: 12px 14px; position: relative;
     }
-    .mobile-patient-card.row-ssr { border-left: 4px solid #f59e0b; }
-    .mobile-patient-card.row-par { border-left: 4px solid #f97316; }
+    .mobile-patient-card.row-ssr     { border-left: 4px solid #22c55e; }
+    .mobile-patient-card.row-ltc     { border-left: 4px solid #eab308; }
+    .mobile-patient-card.row-lowcost { border-left: 4px solid #ec4899; }
+    .mobile-patient-card.row-par     { border-left: 4px solid #f97316; }
     .mpc-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
     .mpc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; font-size: 12.5px; color: var(--text-secondary); }
     .mpc-actions { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
@@ -767,6 +896,7 @@
   <button class="tab-btn"         onclick="switchTab('staff',this)"         data-icon="👥" data-label="Staff">👥 Staff Directory</button>
   <button class="tab-btn"         onclick="switchTab('caseload',this)"      data-icon="📊" data-label="Caseload">📊 Caseload Distribution</button>
   <button class="tab-btn"         onclick="switchTab('schedule',this)"      data-icon="📅" data-label="Schedule">📅 Patient Scheduling</button>
+  <button class="tab-btn"         onclick="switchTab('allpatients',this)"   data-icon="🗓" data-label="All Pts">🗓 All Patients</button>
   <button class="tab-btn"         onclick="switchTab('appointments',this)"  data-icon="🏥" data-label="Appt/Sick">🏥 Appointment / Sick</button>
 </div>
 
@@ -920,6 +1050,48 @@
   </div>
 </div>
 
+<!-- ═══ ALL PATIENTS (weekly assignment grid) ═══ -->
+<div id="page-allpatients" class="page">
+  <div class="container">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;flex-wrap:wrap;">
+      <div class="search-wrap" style="max-width:280px;">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="ap-search" type="text" placeholder="Search patient…" oninput="renderAllPatients()">
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text-muted);">
+        <span class="ap-legend-dot" style="background:#22c55e;"></span>SSR
+        <span class="ap-legend-dot" style="background:#eab308;margin-left:8px;"></span>LTC
+        <span class="ap-legend-dot" style="background:#ec4899;margin-left:8px;"></span>Low-cost
+      </div>
+      <div id="ap-missing-badge" style="display:none;margin-left:auto;padding:4px 12px;background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:20px;font-size:12.5px;font-weight:600;color:var(--red);"></div>
+    </div>
+    <!-- Legend -->
+    <div class="sched-legend" style="margin-bottom:1.25rem;">
+      <span style="font-weight:600;font-size:12px;color:var(--text-primary);">Session badge:</span>
+      <span style="font-size:12px;color:var(--text-secondary);">Shows assigned therapist per day. Click a cell to assign.</span>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);"></span> Missing sessions
+      </span>
+    </div>
+    <div class="ap-wrap">
+      <table class="ap-table" id="ap-table">
+        <thead>
+          <tr>
+            <th class="ap-name-col">Patient Name</th>
+            <th>Monday</th>
+            <th>Tuesday</th>
+            <th>Wednesday</th>
+            <th>Thursday</th>
+            <th>Friday</th>
+          </tr>
+        </thead>
+        <tbody id="ap-tbody"></tbody>
+      </table>
+      <div id="ap-empty" style="display:none;text-align:center;padding:3rem;color:var(--text-muted);font-size:14px;">No active patients found.</div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ APPOINTMENTS / SICK ═══ -->
 <div id="page-appointments" class="page">
   <div class="container">
@@ -989,6 +1161,21 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closePresetModal()">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- All Patients tab — therapist picker -->
+<div class="ap-picker-overlay" id="ap-picker-overlay" onclick="closeApPicker()"></div>
+<div class="ap-picker" id="ap-picker-panel" style="display:none;">
+  <div class="ap-picker-header">
+    <div class="ap-picker-title">
+      <span id="ap-picker-label">Assign Therapist</span>
+      <button style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text-muted);line-height:1;padding:0;" onclick="closeApPicker()">×</button>
+    </div>
+    <input class="ap-picker-search" id="ap-picker-search" type="text" placeholder="Search therapist…" oninput="filterApPicker()">
+  </div>
+  <div class="ap-picker-body">
+    <div id="ap-picker-list"></div>
   </div>
 </div>
 
@@ -1336,6 +1523,7 @@
     if (tab === 'staff')        renderStaff();
     if (tab === 'caseload')     renderCaseload();
     if (tab === 'schedule')     renderSchedule();
+    if (tab === 'allpatients')  renderAllPatients();
     if (tab === 'appointments') renderAppointments();
   }
 
@@ -1377,6 +1565,18 @@
       banner.style.display = 'none';
     }
   }
+  // ── Insurance category row-color helper ──
+  function getPatientRowClass(p) {
+    if (!p) return '';
+    const isLowCost = p.insurance === 'Low-cost' || p.insurance === 'ABM';
+    const isLTC     = p.category && (p.category === 'LTC' || p.category.startsWith('LTC'));
+    if (p.category === 'SSR')  return 'row-ssr';
+    if (isLowCost)             return 'row-lowcost';
+    if (isLTC)                 return 'row-ltc';
+    if (p.category === 'PAR')  return 'row-par';
+    return '';
+  }
+
   // ── Badges ──
   function wardBadge(w) {
     const map = { 'Ward A':'badge-ward-a','Ward B':'badge-ward-b','ICU 1':'badge-icu-1','ICU 2':'badge-icu-2' };
@@ -1438,7 +1638,7 @@
       return;
     }
     tbody.innerHTML = list.map((p, i) => {
-      const rowClass = p.category === 'SSR' ? 'row-ssr' : p.category === 'PAR' ? 'row-par' : '';
+      const rowClass = getPatientRowClass(p);
       const actions = showArchived
         ? `<button class="icon-btn" data-action="unarchive" data-id="${p.id}" title="Restore patient" style="font-size:13px;">♻️</button>
            <button class="icon-btn del" data-action="delete" data-id="${p.id}" title="Delete permanently" style="font-size:15px;">🗑</button>`
@@ -2751,6 +2951,267 @@
     }).join('');
   }
 
+  // ══════════════════════════════════════════
+  //  ALL PATIENTS TAB
+  // ══════════════════════════════════════════
+
+  let apPickerPatientId = null;
+  let apPickerDay       = null;
+
+  // Sort order: SSR → LTC → Low-cost → PAR → others
+  function apCategoryOrder(p) {
+    if (p.category === 'SSR')                                          return 0;
+    if (p.category && p.category.startsWith('LTC'))                    return 1;
+    if (p.insurance === 'Low-cost' || p.insurance === 'ABM')           return 2;
+    if (p.category === 'PAR')                                          return 3;
+    return 4;
+  }
+
+  // How many sessions are scheduled for a patient across all therapists this week
+  function getPatientTotalScheduled(pid) {
+    let count = 0;
+    Object.values(schedule).forEach(days =>
+      DAYS.forEach(day => { count += (days[day]||[]).filter(e => e.patientId === pid).length; })
+    );
+    return count;
+  }
+
+  // Which therapist + role has this patient on a given day?
+  function getPatientDayAssignments(pid, day) {
+    const results = [];
+    Object.entries(schedule).forEach(([tid, days]) => {
+      (days[day]||[]).forEach(e => {
+        if (e.patientId === pid) {
+          const t = staff.find(s => s.id === tid);
+          if (t) results.push({ therapist: t, role: e.role });
+        }
+      });
+    });
+    return results;
+  }
+
+  function renderAllPatients() {
+    const q = (document.getElementById('ap-search')?.value || '').toLowerCase();
+    const tbody = document.getElementById('ap-tbody');
+    const empty = document.getElementById('ap-empty');
+    if (!tbody) return;
+
+    const active = patients
+      .filter(p => !p.archived && parseInt(p.freq) > 0 && (!q || p.name.toLowerCase().includes(q)))
+      .sort((a, b) => apCategoryOrder(a) - apCategoryOrder(b) || (a.name||'').localeCompare(b.name||''));
+
+    if (!active.length) {
+      tbody.innerHTML = ''; empty.style.display = '';
+      document.getElementById('ap-missing-badge').style.display = 'none';
+      return;
+    }
+    empty.style.display = 'none';
+
+    let totalMissing = 0;
+
+    tbody.innerHTML = active.map(p => {
+      const freq      = parseInt(p.freq) || 0;
+      const scheduled = getPatientTotalScheduled(p.id);
+      const missing   = Math.max(0, freq - scheduled);
+      if (missing > 0) totalMissing++;
+
+      const rowClass = getPatientRowClass(p);
+
+      const dayCells = DAYS.map(day => {
+        const apptType = appointments[day]?.get(p.id);
+        if (apptType) {
+          const badge = apptType === 'sick'
+            ? `<span class="ap-sick-badge">🤒 Sick</span>`
+            : `<span class="ap-appt-badge">🏥 Appt</span>`;
+          return `<td class="ap-day-cell">${badge}</td>`;
+        }
+
+        const assignments = getPatientDayAssignments(p.id, day);
+        const slots = assignments.map(({ therapist, role }) => {
+          const disc = (therapist.discipline||'PT').toLowerCase();
+          return `<div class="ap-slot ${role}" title="${esc(therapist.name)} · ${role}"
+              data-action="ap-remove-slot" data-pid="${p.id}" data-day="${day}" data-tid="${therapist.id}">
+            <span style="font-size:9px;font-weight:700;opacity:0.6;text-transform:uppercase;">${disc}</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;">${esc(therapist.name.split(' ')[0])}</span>
+            <button class="ap-slot-remove" data-action="ap-remove-slot" data-pid="${p.id}" data-day="${day}" data-tid="${therapist.id}" title="Remove">×</button>
+          </div>`;
+        }).join('');
+
+        // Can still add another therapist today? (patient not fully covered for this day — allow multiple therapists)
+        const addBtn = `<button class="ap-add-btn" data-action="ap-open-picker" data-pid="${p.id}" data-day="${day}" title="Assign therapist">+</button>`;
+
+        return `<td class="ap-day-cell">${slots}${addBtn}</td>`;
+      }).join('');
+
+      const missingBadge = missing > 0
+        ? `<span class="ap-missing-dot" title="${missing} session${missing>1?'s':''} missing"></span>
+           <span class="ap-missing-count">-${missing}</span>`
+        : '';
+
+      return `
+        <tr class="${rowClass}">
+          <td>
+            <div class="ap-name-cell">
+              ${missingBadge}
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.name)}">${esc(p.name)}</span>
+              <span style="font-size:10px;color:var(--text-muted);white-space:nowrap;margin-left:auto;">${scheduled}/${freq}×</span>
+            </div>
+          </td>
+          ${dayCells}
+        </tr>`;
+    }).join('');
+
+    // Missing badge in toolbar
+    const mb = document.getElementById('ap-missing-badge');
+    if (totalMissing > 0) {
+      mb.style.display = '';
+      mb.textContent   = `⚠ ${totalMissing} patient${totalMissing>1?'s':''} with missing sessions`;
+    } else {
+      mb.style.display = 'none';
+    }
+  }
+
+  // ── All Patients picker ──
+  function openApPicker(patientId, day, anchorEl) {
+    apPickerPatientId = patientId; apPickerDay = day;
+    const patient = patients.find(p => p.id === patientId);
+    document.getElementById('ap-picker-search').value = '';
+    document.getElementById('ap-picker-label').textContent =
+      patient ? `${esc(patient.name)} · ${DAY_FULL[day]}` : 'Assign Therapist';
+    filterApPicker();
+    const panel   = document.getElementById('ap-picker-panel');
+    const overlay = document.getElementById('ap-picker-overlay');
+    panel.style.display = 'flex';
+    overlay.classList.add('open');
+    // Position: near anchor
+    const nav  = document.querySelector('.nav') || document.querySelector('.header');
+    const navH = nav ? nav.getBoundingClientRect().bottom : 60;
+    const GAP  = 10;
+    const topPx = navH + GAP;
+    panel.style.top       = topPx + 'px';
+    panel.style.right     = '18px';
+    panel.style.left      = '';
+    panel.style.maxHeight = (window.innerHeight - topPx - GAP) + 'px';
+    document.getElementById('ap-picker-search').focus();
+  }
+
+  function closeApPicker() {
+    document.getElementById('ap-picker-panel').style.display = 'none';
+    document.getElementById('ap-picker-overlay').classList.remove('open');
+    apPickerPatientId = null; apPickerDay = null;
+  }
+
+  function filterApPicker() {
+    const q       = document.getElementById('ap-picker-search').value.toLowerCase();
+    const patient = patients.find(p => p.id === apPickerPatientId);
+    const list    = document.getElementById('ap-picker-list');
+    if (!patient || !apPickerDay) { list.innerHTML = ''; return; }
+
+    const freq    = parseInt(patient.freq) || 0;
+    const alreadyOnDay = getPatientDayAssignments(apPickerPatientId, apPickerDay)
+      .map(a => a.therapist.id);
+
+    const isOtOrSlp = t => t.discipline === 'OT' || t.discipline === 'SLP';
+    const isUnassigned = t => !patients.some(p =>
+      p.primary === t.name || p.secondary === t.name || p.tertiary === t.name
+    );
+    const isAssignedTo = t =>
+      patient.primary === t.name || patient.secondary === t.name || patient.tertiary === t.name;
+
+    const eligible = staff.filter(t => {
+      if (t.archived) return false;
+      if (q && !t.name.toLowerCase().includes(q)) return false;
+      // Must be eligible to see this patient
+      if (!isOtOrSlp(t) && !isUnassigned(t) && !isAssignedTo(t)) return false;
+      // Must work this day
+      const workDays = t.workDays || DAYS;
+      if (!workDays.includes(apPickerDay)) return false;
+      return true;
+    });
+
+    if (!eligible.length) {
+      list.innerHTML = `<div class="ap-picker-empty">No eligible therapists for ${DAY_FULL[apPickerDay]}.</div>`;
+      return;
+    }
+
+    const busyOnDay = getPatientDaySet(apPickerDay);
+
+    list.innerHTML = eligible.map(t => {
+      const used    = getTherapistPatientCount(t.id, patient.id);
+      const allowed = getAllowedSessions(t, patient);
+      const alreadyAssignedHere = alreadyOnDay.includes(t.id);
+      const isAbsent = absentIds.has(t.id) || isTherapistAbsentOnDay(t.id, apPickerDay);
+      const sessMaxed = isAssignedTo(t) && used >= allowed;
+      const disabled = alreadyAssignedHere || isAbsent || sessMaxed || isDayClosed(t.id, apPickerDay);
+      const role = isAssignedTo(t) ? getPatientRole(t, patient) : 'primary';
+      const disc = (t.discipline||'PT');
+      const discBadge = disc === 'PT' ? 'badge-pt' : disc === 'OT' ? 'badge-ot' : 'badge-slp';
+
+      let hint = '';
+      if (isAbsent)            hint = ' · absent';
+      else if (alreadyAssignedHere) hint = ' · already assigned today';
+      else if (sessMaxed)      hint = ` · maxed (${used}/${allowed})`;
+      else if (isDayClosed(t.id, apPickerDay)) hint = ' · day closed';
+      else                     hint = ` · ${used}/${allowed} sessions`;
+
+      return `<div class="ap-picker-item ${disabled ? 'disabled' : ''}"
+          ${disabled ? '' : `data-action="ap-pick-therapist" data-tid="${t.id}" data-role="${role}"`}>
+          <span class="badge ${discBadge}" style="flex-shrink:0;">${disc}</span>
+          <span class="role-pill ${role}" style="flex-shrink:0;">${role.charAt(0).toUpperCase()+role.slice(1)}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(t.name)}</span>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${hint}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ── All Patients tab event delegation ──
+  document.getElementById('ap-table').addEventListener('click', e => {
+    // Open picker
+    const addBtn = e.target.closest('[data-action="ap-open-picker"]');
+    if (addBtn) {
+      openApPicker(addBtn.dataset.pid, addBtn.dataset.day, addBtn);
+      return;
+    }
+    // Remove slot (the × button or the slot itself)
+    const rmBtn = e.target.closest('[data-action="ap-remove-slot"]');
+    if (rmBtn) {
+      const { pid, day, tid } = rmBtn.dataset;
+      if (!schedule[tid]?.[day]) return;
+      schedule[tid][day] = schedule[tid][day].filter(e => e.patientId !== pid);
+      manualSlots.delete(`${tid}|${day}|${pid}`);
+      saveSchedule().then(() => { renderAllPatients(); renderSchedule(); });
+      return;
+    }
+  });
+
+  document.getElementById('ap-picker-panel').addEventListener('click', e => {
+    const item = e.target.closest('[data-action="ap-pick-therapist"]');
+    if (!item || !apPickerPatientId || !apPickerDay) return;
+    const { tid, role } = item.dataset;
+    const therapist = staff.find(s => s.id === tid);
+    const patient   = patients.find(p => p.id === apPickerPatientId);
+    if (!therapist || !patient) return;
+
+    // Check allowed
+    const allowed = getAllowedSessions(therapist, patient);
+    const used    = getTherapistPatientCount(tid, patient.id);
+    if (used >= allowed && (patient.primary === therapist.name || patient.secondary === therapist.name || patient.tertiary === therapist.name)) return;
+
+    ensureTherapistSlot(tid);
+    schedule[tid][apPickerDay].push({ patientId: patient.id, role });
+    manualSlots.add(`${tid}|${apPickerDay}|${patient.id}`);
+    saveSchedule().then(() => {
+      closeApPicker();
+      renderAllPatients();
+      renderSchedule();
+    });
+  });
+
+  function refreshViews() {
+    if (document.getElementById('page-schedule').classList.contains('active'))    renderSchedule();
+    if (document.getElementById('page-allpatients').classList.contains('active')) renderAllPatients();
+  }
+
   // ── Schedule confirm modal ──
   let schedConfirmCallback = null;
   function openSchedConfirm(icon, title, msg, btnLabel, cb) {
@@ -2791,6 +3252,7 @@
     manualSlotsUndoSnapshot = null;
     document.getElementById('sched-undo-btn').style.display = 'none';
     renderSchedule();
+    renderAllPatients();
     saveSchedule();
     showToast('↩ Schedule restored.');
   }
@@ -3151,6 +3613,7 @@
 
     await saveSchedule();
     renderSchedule();
+    renderAllPatients();
   }
 
   function clearSchedule() {
@@ -3190,9 +3653,8 @@
     schedule = preserved;
     await saveSchedule();
     renderSchedule();
+    renderAllPatients();
   }
-
-  // ── Bootstrap: load all data from Supabase ──
   (async () => {
     showLoader('Loading data…');
 
@@ -3276,7 +3738,7 @@
       const removed = schedule[tid][day][parseInt(idx)];
       if (removed) manualSlots.delete(`${tid}|${day}|${removed.patientId}`);
       schedule[tid][day].splice(parseInt(idx), 1);
-      saveSchedule().then(() => renderSchedule()); return;
+      saveSchedule().then(() => { renderSchedule(); renderAllPatients(); }); return;
     }
     const addBtn = e.target.closest('[data-action="open-picker"]');
     if (addBtn) {
@@ -3299,7 +3761,7 @@
 
     schedule[pickerTid][pickerDay].push({ patientId: pid, role });
     manualSlots.add(`${pickerTid}|${pickerDay}|${pid}`);
-    saveSchedule().then(() => { closePicker(); renderSchedule(); });
+    saveSchedule().then(() => { closePicker(); renderSchedule(); renderAllPatients(); });
   });
   // ══════════════════════════════════════════
   //  APPOINTMENTS / SICK
@@ -3503,7 +3965,7 @@
     }
 
     container.innerHTML = list.map(p => {
-      const rowClass = p.category === 'SSR' ? 'row-ssr' : p.category === 'PAR' ? 'row-par' : '';
+      const rowClass = getPatientRowClass(p);
       const actions = showArchived
         ? `<button class="icon-btn" data-action="unarchive" data-id="${p.id}" style="flex:1;">♻️ Restore</button>
            <button class="icon-btn del" data-action="delete" data-id="${p.id}" style="flex:1;">🗑 Delete</button>`
