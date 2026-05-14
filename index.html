@@ -612,15 +612,22 @@
   .sched-slot.tertiary  { background:rgba(124,58,237,0.12); border-color:rgba(124,58,237,0.3); color:var(--text-primary); }
   .sched-slot.lowcost   { background:rgba(233,30,140,0.10); border-color:rgba(233,30,140,0.25);color:var(--text-primary); }
   /* Category left-border overrides */
-  .sched-slot.cat-ssr     { border-left-color: #f59e0b; }
-  .sched-slot.cat-ltc     { border-left-color: #3b82f6; }
-  .sched-slot.cat-lowcost { border-left-color: #10b981; }
+  .sched-slot.cat-ssr     { border-left-color: #22c55e; }
+  .sched-slot.cat-ltc     { border-left-color: #eab308; }
+  .sched-slot.cat-lowcost { border-left-color: #ec4899; }
   .sched-slot.cat-par     { border-left-color: #f97316; }
+  /* Category name-text color overrides in slots */
+  .sched-slot.cat-ssr     .sched-slot-name { color: #15803d; }
+  .sched-slot.cat-ltc     .sched-slot-name { color: #a16207; }
+  .sched-slot.cat-lowcost .sched-slot-name { color: #be185d; }
+  [data-theme="dark"] .sched-slot.cat-ssr     .sched-slot-name { color: #4ade80; }
+  [data-theme="dark"] .sched-slot.cat-ltc     .sched-slot-name { color: #facc15; }
+  [data-theme="dark"] .sched-slot.cat-lowcost .sched-slot-name { color: #f472b6; }
   /* Category dot for legend and picker */
   .cat-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
-  .cat-dot.cat-ssr     { background:#f59e0b; }
-  .cat-dot.cat-ltc     { background:#3b82f6; }
-  .cat-dot.cat-lowcost { background:#10b981; }
+  .cat-dot.cat-ssr     { background:#22c55e; }
+  .cat-dot.cat-ltc     { background:#eab308; }
+  .cat-dot.cat-lowcost { background:#ec4899; }
   .cat-dot.cat-par     { background:#f97316; }
   /* Legend bar */
   .sched-legend { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:7px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; font-size:12px; color:var(--text-secondary); }
@@ -1565,15 +1572,24 @@
       banner.style.display = 'none';
     }
   }
+  // ── Insurance category CSS class helper (used in slots, picker, All Patients) ──
+  function getPatientCatClass(p) {
+    if (!p) return '';
+    const cat = (p.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cat === 'ssr')                                          return 'cat-ssr';
+    if (cat.startsWith('ltc'))                                  return 'cat-ltc';
+    if (cat === 'lowcost' || p.insurance === 'Low-cost' || p.insurance === 'ABM') return 'cat-lowcost';
+    if (cat === 'par')                                          return 'cat-par';
+    return '';
+  }
+
   // ── Insurance category row-color helper ──
   function getPatientRowClass(p) {
-    if (!p) return '';
-    const isLowCost = p.insurance === 'Low-cost' || p.insurance === 'ABM';
-    const isLTC     = p.category && (p.category === 'LTC' || p.category.startsWith('LTC'));
-    if (p.category === 'SSR')  return 'row-ssr';
-    if (isLowCost)             return 'row-lowcost';
-    if (isLTC)                 return 'row-ltc';
-    if (p.category === 'PAR')  return 'row-par';
+    const cat = getPatientCatClass(p);
+    if (cat === 'cat-ssr')     return 'row-ssr';
+    if (cat === 'cat-ltc')     return 'row-ltc';
+    if (cat === 'cat-lowcost') return 'row-lowcost';
+    if (cat === 'cat-par')     return 'row-par';
     return '';
   }
 
@@ -2714,11 +2730,7 @@
           const allowed = getAllowedSessions(s, pat);
           const used    = getTherapistPatientCount(s.id, pat.id);
           const badge   = `<span style="font-size:9px;opacity:0.6;margin-left:2px;">${used}/${allowed}</span>`;
-          const cat     = (pat.category||'').toLowerCase().replace(/[^a-z]/g,'');
-          const catClass = cat === 'ssr' ? 'cat-ssr'
-                         : cat === 'ltc' ? 'cat-ltc'
-                         : cat === 'lowcost' || pat.insurance === 'Low-cost' ? 'cat-lowcost'
-                         : cat === 'par' ? 'cat-par' : '';
+          const catClass = getPatientCatClass(pat);
           const catDot = catClass
             ? `<span class="cat-dot ${catClass}" title="${(pat.category||pat.insurance||'').toUpperCase()}" style="flex-shrink:0;"></span>`
             : '';
@@ -2835,7 +2847,7 @@
 
     // Always anchor to top-right of the viewport just below the nav bar,
     // with max-height clamped to remaining viewport space so it never overflows.
-    const nav  = document.querySelector('.nav');
+    const nav  = document.querySelector('.header');
     const navH = nav ? nav.getBoundingClientRect().bottom : 60;
     const GAP  = 10;
     const topPx = navH + GAP;
@@ -2932,12 +2944,7 @@
       else if (wouldExceed)   hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${SLOT_CAP})`;
       else                    hint = ` · ${used}/${allowed} sessions`;
 
-      const cat      = (p.category||'').toLowerCase().replace(/[^a-z]/g,'');
-      const catClass = cat === 'ssr' ? 'cat-ssr'
-                     : cat === 'ltc' ? 'cat-ltc'
-                     : cat === 'lowcost' || p.insurance === 'Low-cost' ? 'cat-lowcost'
-                     : cat === 'par' ? 'cat-par'
-                     : '';
+      const catClass = getPatientCatClass(p);
       const catDot = catClass ? `<span class="cat-dot ${catClass}" title="${(p.category||p.insurance||'')}"></span>` : '';
 
       return `
@@ -3134,8 +3141,6 @@
       return;
     }
 
-    const busyOnDay = getPatientDaySet(apPickerDay);
-
     list.innerHTML = eligible.map(t => {
       const used    = getTherapistPatientCount(t.id, patient.id);
       const allowed = getAllowedSessions(t, patient);
@@ -3206,11 +3211,6 @@
       renderSchedule();
     });
   });
-
-  function refreshViews() {
-    if (document.getElementById('page-schedule').classList.contains('active'))    renderSchedule();
-    if (document.getElementById('page-allpatients').classList.contains('active')) renderAllPatients();
-  }
 
   // ── Schedule confirm modal ──
   let schedConfirmCallback = null;
