@@ -374,20 +374,21 @@
   [data-theme="dark"] .ra-legend-item.ra-due-soon { background:rgba(234,179,8,0.2); color:#fbbf24; }
   [data-theme="dark"] .ra-legend-item.ra-ok       { background:rgba(34,197,94,0.2); color:#4ade80; }
   .ra-table-wrap { border-radius:12px; border:1px solid var(--border); overflow-x:auto; background:var(--bg-card); -webkit-overflow-scrolling:touch; }
-  .ra-table { border-collapse:collapse; width:100%; min-width:860px; table-layout:fixed; }
+  .ra-table-wrap { border-radius:12px; border:1px solid var(--border); overflow-x:auto; background:var(--bg-card); -webkit-overflow-scrolling:touch; }
+  .ra-table { border-collapse:collapse; table-layout:fixed; width:1100px; min-width:1100px; }
   .ra-table thead th {
     background:var(--th-bg); color:rgba(255,255,255,0.85); font-size:11px; font-weight:600;
-    letter-spacing:0.05em; text-transform:uppercase; padding:10px 8px; white-space:nowrap;
-    position:sticky; top:0; z-index:2; overflow:hidden;
+    letter-spacing:0.05em; text-transform:uppercase; padding:10px 12px; white-space:nowrap;
+    position:sticky; top:0; z-index:2; overflow:hidden; text-align:left;
   }
   .ra-th-name      { width:170px; }
-  .ra-th-mrn       { width:100px; }
-  .ra-th-loc       { width:100px; }
-  .ra-th-primary   { width:130px; }
-  .ra-th-lasteval  { width:120px; }
-  .ra-th-due       { width:120px; }
-  .ra-th-completed { width:120px; }
-  .ra-th-comments  { width:auto; min-width:150px; }
+  .ra-th-mrn       { width:110px; }
+  .ra-th-loc       { width:110px; }
+  .ra-th-primary   { width:140px; }
+  .ra-th-lasteval  { width:130px; }
+  .ra-th-due       { width:130px; }
+  .ra-th-completed { width:130px; }
+  .ra-th-comments  { width:180px; }
   .ra-table tbody tr { border-bottom:1px solid var(--border); }
   .ra-table tbody tr:last-child { border-bottom:none; }
   .ra-table tbody tr.ra-overdue  { background:#fff5f5; }
@@ -397,13 +398,12 @@
   [data-theme="dark"] .ra-table tbody tr.ra-due-soon { background:rgba(234,179,8,0.08); }
   [data-theme="dark"] .ra-table tbody tr.ra-ok       { background:rgba(34,197,94,0.08); }
   .ra-table td {
-    padding:6px 8px; font-size:12.5px; color:var(--text-primary);
-    vertical-align:middle; overflow:hidden;
-    white-space:nowrap; text-overflow:ellipsis;
+    padding:7px 12px; font-size:12.5px; color:var(--text-primary);
+    vertical-align:middle; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+    text-align:left;
   }
-  /* Comments column can wrap */
   .ra-table td:last-child { white-space:normal; }
-  .ra-cell-name { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; max-width:100%; }
+  .ra-cell-name { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
   .ra-cell-mrn  { font-family:'DM Mono',monospace; font-size:12px; color:var(--text-secondary); }
   .ra-input {
     width:100%; padding:4px 6px; border:1px solid var(--border); border-radius:5px;
