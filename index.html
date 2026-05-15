@@ -525,6 +525,19 @@
     background:rgba(220,38,38,0.1); color:var(--red);
     border:1px solid rgba(220,38,38,0.2);
   }
+  /* ── Joint Session badge ── */
+  .ap-joint-badge {
+    display:inline-block; font-size:9.5px; padding:1px 6px; border-radius:10px; font-weight:700;
+    background:rgba(217,119,6,0.13); color:#b45309;
+    border:1px solid rgba(217,119,6,0.3);
+    margin-top:2px;
+  }
+  [data-theme="dark"] .ap-joint-badge { background:rgba(251,191,36,0.1); color:#fbbf24; border-color:rgba(251,191,36,0.25); }
+  .ap-slot.joint-session {
+    border-left: 3px solid #d97706 !important;
+    background: rgba(217,119,6,0.09) !important;
+  }
+  [data-theme="dark"] .ap-slot.joint-session { background: rgba(251,191,36,0.08) !important; }
   /* ── All Patients picker ── */
   .ap-picker-overlay { position:fixed;inset:0;z-index:300;display:none; }
   .ap-picker-overlay.open { display:block; }
@@ -899,16 +912,16 @@
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active"  onclick="switchTab('staff',this)"         data-icon="👥" data-label="Staff">👥 Staff Directory</button>
-  <button class="tab-btn"         onclick="switchTab('patients',this)"      data-icon="📋" data-label="Patients">📋 Patient List</button>
+  <button class="tab-btn active"  onclick="switchTab('patients',this)"     data-icon="📋" data-label="Patients">📋 Patient List</button>
+  <button class="tab-btn"         onclick="switchTab('staff',this)"         data-icon="👥" data-label="Staff">👥 Staff Directory</button>
   <button class="tab-btn"         onclick="switchTab('caseload',this)"      data-icon="📊" data-label="Caseload">📊 Caseload Distribution</button>
-  <button class="tab-btn"         onclick="switchTab('allpatients',this)"   data-icon="🗓" data-label="All Pts">🗓 All Patients</button>
   <button class="tab-btn"         onclick="switchTab('schedule',this)"      data-icon="📅" data-label="Schedule">📅 Patient Scheduling</button>
+  <button class="tab-btn"         onclick="switchTab('allpatients',this)"   data-icon="🗓" data-label="All Pts">🗓 All Patients</button>
   <button class="tab-btn"         onclick="switchTab('appointments',this)"  data-icon="🏥" data-label="Appt/Sick">🏥 Appointment / Sick</button>
 </div>
 
 <!-- ═══ PATIENTS ═══ -->
-<div id="page-patients" class="page">
+<div id="page-patients" class="page active">
   <div class="container">
     <div class="stats-bar">
       <div class="stat-card">
@@ -973,7 +986,7 @@
 </div>
 
 <!-- ═══ STAFF ═══ -->
-<div id="page-staff" class="page active">
+<div id="page-staff" class="page">
   <div class="container">
     <div class="stats-bar">
       <div class="stat-card"><div class="stat-label">Total Staff</div><div class="stat-value" id="stat-staff-total">0</div></div>
@@ -2596,6 +2609,35 @@
     return ids;
   }
 
+  // ── Joint Session helpers ──
+  // Returns array of therapist objects seeing this patient on a given day
+  function getTherapistsOnDay(pid, day) {
+    const result = [];
+    Object.entries(schedule).forEach(([tid, days]) => {
+      if ((days[day]||[]).some(e => e.patientId === pid)) {
+        const t = staff.find(s => s.id === tid);
+        if (t) result.push(t);
+      }
+    });
+    return result;
+  }
+
+  // Is this a joint session day? (patient seen by >1 therapist including OT or SLP)
+  function isJointSessionDay(pid, day) {
+    const therapists = getTherapistsOnDay(pid, day);
+    if (therapists.length < 2) return false;
+    return therapists.some(t => t.discipline === 'OT' || t.discipline === 'SLP');
+  }
+
+  // Total sessions scheduled for a patient this week counting each therapist separately (joint sessions count per therapist)
+  function getPatientTotalScheduledWithJoint(pid) {
+    let count = 0;
+    Object.values(schedule).forEach(days =>
+      DAYS.forEach(day => { count += (days[day]||[]).filter(e => e.patientId === pid).length; })
+    );
+    return count;
+  }
+
   // Slot weight: SSR = 2, everything else = 1
   function getSlotWeight(patient) {
     const cat = patient.category || '';
@@ -2729,7 +2771,12 @@
           const role    = e.role || getPatientRole(s, pat);
           const allowed = getAllowedSessions(s, pat);
           const used    = getTherapistPatientCount(s.id, pat.id);
-          const badge   = `<span style="font-size:9px;opacity:0.6;margin-left:2px;">${used}/${allowed}</span>`;
+          const totalWithJoint = getPatientTotalScheduledWithJoint(pat.id);
+          const freq    = parseInt(pat.freq) || 0;
+          const isOverFreq = totalWithJoint > freq;
+          const badge   = isOverFreq
+            ? `<span style="font-size:9px;font-weight:700;margin-left:2px;color:#d97706;" title="⚡ Joint session — over frequency">${totalWithJoint}/${freq} ⚡</span>`
+            : `<span style="font-size:9px;opacity:0.6;margin-left:2px;">${used}/${allowed}</span>`;
           const catClass = getPatientCatClass(pat);
           const catDot = catClass
             ? `<span class="cat-dot ${catClass}" title="${(pat.category||pat.insurance||'').toUpperCase()}" style="flex-shrink:0;"></span>`
@@ -2931,18 +2978,29 @@
       const busyElsewhere = !alreadyHere && busyToday.has(p.id);
       const sessMaxed     = assigned && used >= allowed;
       const hasAppt       = !!(appointments[pickerDay]?.has(p.id));
-      const disabled      = alreadyHere || busyElsewhere || sessMaxed || hasAppt;
+      // OT/SLP joint session rule: if patient is already seen by a PT on this day,
+      // OT and SLP are ALLOWED to be added as a joint session (not blocked by busyElsewhere)
+      const isOtSlpTherapist = therapist.discipline === 'OT' || therapist.discipline === 'SLP';
+      const otherTherapistsToday = getTherapistsOnDay(p.id, pickerDay);
+      const seenByPTToday = otherTherapistsToday.some(t => t.discipline === 'PT' && t.id !== therapist.id);
+      const isJointAllowed = isOtSlpTherapist && seenByPTToday && !alreadyHere;
+      const effectiveBusy = busyElsewhere && !isJointAllowed;
+      const disabled      = alreadyHere || effectiveBusy || sessMaxed || hasAppt;
       const role          = assigned ? getPatientRole(therapist, p) : 'primary';
       const slotCost      = getSlotWeight(p);
       const wouldExceed   = (daySlots + slotCost) > SLOT_CAP;
+      // Calculate what total session count would be after this joint addition
+      const currentTotal  = getPatientTotalScheduledWithJoint(p.id);
+      const freq          = parseInt(p.freq) || 0;
 
       let hint = '';
-      if (hasAppt)            hint = ' · 🏥 has appointment';
-      else if (alreadyHere)   hint = ' · already here';
-      else if (busyElsewhere) hint = ' · busy today';
-      else if (sessMaxed)     hint = ` · sessions maxed (${used}/${allowed})`;
-      else if (wouldExceed)   hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${SLOT_CAP})`;
-      else                    hint = ` · ${used}/${allowed} sessions`;
+      if (hasAppt)              hint = ' · 🏥 has appointment';
+      else if (alreadyHere)     hint = ' · already here';
+      else if (effectiveBusy)   hint = ' · busy today';
+      else if (sessMaxed)       hint = ` · sessions maxed (${used}/${allowed})`;
+      else if (isJointAllowed)  hint = ` · ⚡ Joint session — will flag ${currentTotal+1}/${freq}`;
+      else if (wouldExceed)     hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${SLOT_CAP})`;
+      else                      hint = ` · ${used}/${allowed} sessions`;
 
       const catClass = getPatientCatClass(p);
       const catDot = catClass ? `<span class="cat-dot ${catClass}" title="${(p.category||p.insurance||'')}"></span>` : '';
@@ -3019,6 +3077,7 @@
     tbody.innerHTML = active.map(p => {
       const freq      = parseInt(p.freq) || 0;
       const scheduled = getPatientTotalScheduled(p.id);
+      const scheduledWithJoint = getPatientTotalScheduledWithJoint(p.id);
       const missing   = Math.max(0, freq - scheduled);
       if (missing > 0) totalMissing++;
 
@@ -3034,21 +3093,32 @@
         }
 
         const assignments = getPatientDayAssignments(p.id, day);
+        const isJoint = assignments.length > 1 && assignments.some(a => a.therapist.discipline === 'OT' || a.therapist.discipline === 'SLP');
         const slots = assignments.map(({ therapist, role }) => {
           const disc = (therapist.discipline||'PT').toLowerCase();
-          return `<div class="ap-slot ${role}" title="${esc(therapist.name)} · ${role}"
+          return `<div class="ap-slot ${role}${isJoint ? ' joint-session' : ''}" title="${esc(therapist.name)} · ${role}${isJoint ? ' · ⚡ Joint Session' : ''}"
               data-action="ap-remove-slot" data-pid="${p.id}" data-day="${day}" data-tid="${therapist.id}">
             <span style="font-size:9px;font-weight:700;opacity:0.6;text-transform:uppercase;">${disc}</span>
             <span style="overflow:hidden;text-overflow:ellipsis;">${esc(therapist.name.split(' ')[0])}</span>
             <button class="ap-slot-remove" data-action="ap-remove-slot" data-pid="${p.id}" data-day="${day}" data-tid="${therapist.id}" title="Remove">×</button>
           </div>`;
         }).join('');
+        const jointBadge = isJoint ? `<span class="ap-joint-badge" title="Joint session — counts as +1 per therapist">⚡ Joint</span>` : '';
 
         // Can still add another therapist today? (patient not fully covered for this day — allow multiple therapists)
         const addBtn = `<button class="ap-add-btn" data-action="ap-open-picker" data-pid="${p.id}" data-day="${day}" title="Assign therapist">+</button>`;
 
-        return `<td class="ap-day-cell">${slots}${addBtn}</td>`;
+        return `<td class="ap-day-cell">${slots}${jointBadge}${addBtn}</td>`;
       }).join('');
+
+      const isOverFreq = scheduledWithJoint > freq;
+      const missingBadge = missing > 0
+        ? `<span class="ap-missing-dot" title="${missing} session${missing>1?'s':''} missing"></span>
+           <span class="ap-missing-count">-${missing}</span>`
+        : '';
+      const freqDisplay = isOverFreq
+        ? `<span style="font-size:10px;color:var(--red);white-space:nowrap;margin-left:auto;font-weight:700;" title="⚡ Joint session — over frequency">${scheduledWithJoint}/${freq}× ⚡</span>`
+        : `<span style="font-size:10px;color:var(--text-muted);white-space:nowrap;margin-left:auto;">${scheduled}/${freq}×</span>`;
 
       const missingBadge = missing > 0
         ? `<span class="ap-missing-dot" title="${missing} session${missing>1?'s':''} missing"></span>
@@ -3061,7 +3131,7 @@
             <div class="ap-name-cell">
               ${missingBadge}
               <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.name)}">${esc(p.name)}</span>
-              <span style="font-size:10px;color:var(--text-muted);white-space:nowrap;margin-left:auto;">${scheduled}/${freq}×</span>
+              ${freqDisplay}
             </div>
           </td>
           ${dayCells}
@@ -3147,24 +3217,33 @@
       const alreadyAssignedHere = alreadyOnDay.includes(t.id);
       const isAbsent = absentIds.has(t.id) || isTherapistAbsentOnDay(t.id, apPickerDay);
       const sessMaxed = isAssignedTo(t) && used >= allowed;
+      // OT/SLP joint session: allow if patient already seen by PT today
+      const isOtSlpT = t.discipline === 'OT' || t.discipline === 'SLP';
+      const existingTherapistsToday = getTherapistsOnDay(apPickerPatientId, apPickerDay);
+      const ptAlreadyToday = existingTherapistsToday.some(et => et.discipline === 'PT' && et.id !== t.id);
+      const isJointApPicker = isOtSlpT && ptAlreadyToday && !alreadyAssignedHere;
       const disabled = alreadyAssignedHere || isAbsent || sessMaxed || isDayClosed(t.id, apPickerDay);
       const role = isAssignedTo(t) ? getPatientRole(t, patient) : 'primary';
       const disc = (t.discipline||'PT');
       const discBadge = disc === 'PT' ? 'badge-pt' : disc === 'OT' ? 'badge-ot' : 'badge-slp';
 
+      const currentTotal = getPatientTotalScheduledWithJoint(apPickerPatientId);
+      const freq = parseInt(patient.freq) || 0;
+
       let hint = '';
-      if (isAbsent)            hint = ' · absent';
-      else if (alreadyAssignedHere) hint = ' · already assigned today';
-      else if (sessMaxed)      hint = ` · maxed (${used}/${allowed})`;
+      if (isAbsent)                  hint = ' · absent';
+      else if (alreadyAssignedHere)  hint = ' · already assigned today';
+      else if (sessMaxed)            hint = ` · maxed (${used}/${allowed})`;
       else if (isDayClosed(t.id, apPickerDay)) hint = ' · day closed';
-      else                     hint = ` · ${used}/${allowed} sessions`;
+      else if (isJointApPicker)      hint = ` · ⚡ Joint — will flag ${currentTotal+1}/${freq}`;
+      else                           hint = ` · ${used}/${allowed} sessions`;
 
       return `<div class="ap-picker-item ${disabled ? 'disabled' : ''}"
           ${disabled ? '' : `data-action="ap-pick-therapist" data-tid="${t.id}" data-role="${role}"`}>
           <span class="badge ${discBadge}" style="flex-shrink:0;">${disc}</span>
           <span class="role-pill ${role}" style="flex-shrink:0;">${role.charAt(0).toUpperCase()+role.slice(1)}</span>
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(t.name)}</span>
-          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${hint}</span>
+          <span style="font-size:11px;color:${isJointApPicker && !disabled ? '#d97706' : 'var(--text-muted)'};white-space:nowrap;">${hint}</span>
         </div>`;
     }).join('');
   }
@@ -3202,6 +3281,11 @@
     const used    = getTherapistPatientCount(tid, patient.id);
     if (used >= allowed && (patient.primary === therapist.name || patient.secondary === therapist.name || patient.tertiary === therapist.name)) return;
 
+    const isOtSlp = therapist.discipline === 'OT' || therapist.discipline === 'SLP';
+    const existingToday = getTherapistsOnDay(apPickerPatientId, apPickerDay);
+    const ptAlreadyToday = existingToday.some(t => t.discipline === 'PT' && t.id !== therapist.id);
+    const isJoint = isOtSlp && ptAlreadyToday;
+
     ensureTherapistSlot(tid);
     schedule[tid][apPickerDay].push({ patientId: patient.id, role });
     manualSlots.add(`${tid}|${apPickerDay}|${patient.id}`);
@@ -3209,6 +3293,17 @@
       closeApPicker();
       renderAllPatients();
       renderSchedule();
+      // ── Joint session notification ──
+      if (isJoint) {
+        const freq = parseInt(patient.freq) || 0;
+        const newTotal = getPatientTotalScheduledWithJoint(patient.id);
+        const disciplines = getTherapistsOnDay(patient.id, apPickerDay).map(t => t.discipline).join(' + ');
+        showToast(
+          `⚡ Joint Session: ${patient.name} is now seen by ${disciplines} on ${DAY_FULL[apPickerDay]}. ` +
+          `Session count flagged as ${newTotal}/${freq} — counts as +1 per therapist.`,
+          7000
+        );
+      }
     });
   });
 
@@ -3754,14 +3849,35 @@
     const patient   = patients.find(p => p.id === pid);
     if (!therapist || !patient) return;
 
-    if (getPatientDaySet(pickerDay).has(pid)) return;
+    const isOtSlp = therapist.discipline === 'OT' || therapist.discipline === 'SLP';
+    const otherTherapistsToday = getTherapistsOnDay(pid, pickerDay);
+    const seenByPTToday = otherTherapistsToday.some(t => t.discipline === 'PT' && t.id !== therapist.id);
+    const isJoint = isOtSlp && seenByPTToday;
+
+    // Block if patient is already busy today and it's NOT an allowed joint session
+    if (getPatientDaySet(pickerDay).has(pid) && !isJoint) return;
     const allowed = getAllowedSessions(therapist, patient);
     const used    = getTherapistPatientCount(pickerTid, pid);
     if (used >= allowed) return;
 
     schedule[pickerTid][pickerDay].push({ patientId: pid, role });
     manualSlots.add(`${pickerTid}|${pickerDay}|${pid}`);
-    saveSchedule().then(() => { closePicker(); renderSchedule(); renderAllPatients(); });
+    saveSchedule().then(() => {
+      closePicker();
+      renderSchedule();
+      renderAllPatients();
+      // ── Joint session notification ──
+      if (isJoint) {
+        const freq = parseInt(patient.freq) || 0;
+        const newTotal = getPatientTotalScheduledWithJoint(pid);
+        const disciplines = getTherapistsOnDay(pid, pickerDay).map(t => t.discipline).join(' + ');
+        showToast(
+          `⚡ Joint Session: ${patient.name} is now seen by ${disciplines} on ${DAY_FULL[pickerDay]}. ` +
+          `Session count flagged as ${newTotal}/${freq} — counts as +1 per therapist.`,
+          7000
+        );
+      }
+    });
   });
   // ══════════════════════════════════════════
   //  APPOINTMENTS / SICK
