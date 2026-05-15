@@ -375,20 +375,21 @@
   [data-theme="dark"] .ra-legend-item.ra-ok       { background:rgba(34,197,94,0.2); color:#4ade80; }
   .ra-table-wrap { border-radius:12px; border:1px solid var(--border); overflow-x:auto; background:var(--bg-card); -webkit-overflow-scrolling:touch; }
   .ra-table-wrap { border-radius:12px; border:1px solid var(--border); overflow-x:auto; background:var(--bg-card); -webkit-overflow-scrolling:touch; }
-  .ra-table { border-collapse:collapse; table-layout:fixed; width:1100px; min-width:1100px; }
+  .ra-table { border-collapse:collapse; table-layout:fixed; width:100%; min-width:900px; }
   .ra-table thead th {
     background:var(--th-bg); color:rgba(255,255,255,0.85); font-size:11px; font-weight:600;
     letter-spacing:0.05em; text-transform:uppercase; padding:10px 12px; white-space:nowrap;
     position:sticky; top:0; z-index:2; overflow:hidden; text-align:left;
   }
-  .ra-th-name      { width:170px; }
-  .ra-th-mrn       { width:110px; }
-  .ra-th-loc       { width:110px; }
-  .ra-th-primary   { width:140px; }
-  .ra-th-lasteval  { width:130px; }
-  .ra-th-due       { width:130px; }
-  .ra-th-completed { width:130px; }
-  .ra-th-comments  { width:180px; }
+  /* Percentage widths so columns always fill the table exactly */
+  .ra-th-name      { width:16%; }
+  .ra-th-mrn       { width:10%; }
+  .ra-th-loc       { width:10%; }
+  .ra-th-primary   { width:13%; }
+  .ra-th-lasteval  { width:12%; }
+  .ra-th-due       { width:12%; }
+  .ra-th-completed { width:12%; }
+  .ra-th-comments  { width:15%; }
   .ra-table tbody tr { border-bottom:1px solid var(--border); }
   .ra-table tbody tr:last-child { border-bottom:none; }
   .ra-table tbody tr.ra-overdue  { background:#fff5f5; }
@@ -402,16 +403,12 @@
     vertical-align:middle; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
     text-align:left;
   }
-  .ra-table td:last-child { white-space:normal; }
+  .ra-table td:last-child { white-space:normal; overflow:visible; }
   .ra-cell-name { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
   .ra-cell-mrn  { font-family:'DM Mono',monospace; font-size:12px; color:var(--text-secondary); }
-  .ra-input {
-    width:100%; padding:4px 6px; border:1px solid var(--border); border-radius:5px;
-    background:var(--bg); color:var(--text-primary); font-family:'DM Sans',sans-serif;
-    font-size:12px; outline:none; transition:border-color 0.15s; box-sizing:border-box;
-  }
+  .ra-input { width:100%; padding:4px 6px; border:1px solid var(--border); border-radius:5px; background:var(--bg); color:var(--text-primary); font-family:'DM Sans',sans-serif; font-size:12px; outline:none; transition:border-color 0.15s; box-sizing:border-box; }
   .ra-input:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-glow); }
-  .ra-textarea { resize:none; min-height:30px; }
+  .ra-textarea { resize:none; min-height:30px; white-space:normal; }
   .ra-due-badge {
     display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;
   }
