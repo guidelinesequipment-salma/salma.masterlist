@@ -3772,6 +3772,32 @@
       apptRows.forEach(r => { if (appointments[r.day]) appointments[r.day].set(r.patient_id, r.type || 'appointment'); });
     };
 
+    const showDBError = (err) => {
+      const msg = err?.message || String(err) || 'Unknown error';
+      const isFile = location.protocol === 'file:';
+      const banner = document.createElement('div');
+      banner.id = 'db-error-banner';
+      banner.style.cssText = `
+        position:fixed;top:0;left:0;right:0;z-index:9999;
+        background:#7f1d1d;color:#fff;padding:16px 20px;font-size:13px;
+        font-family:sans-serif;line-height:1.6;box-shadow:0 4px 20px rgba(0,0,0,0.4);
+      `;
+      banner.innerHTML = `
+        <div style="max-width:600px;margin:0 auto;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:6px;">⚠️ Could not connect to database</div>
+          ${isFile
+            ? `<div>You are opening this file directly from your device (<code>file://</code>). Browsers block database connections from local files.</div>
+               <div style="margin-top:6px;font-weight:600;">👉 Fix: Upload this file to <a href="https://app.netlify.com/drop" target="_blank" style="color:#fca5a5;">Netlify Drop</a> and open it from there.</div>`
+            : `<div>The app is running at <code>${location.href}</code> but could not reach Supabase.</div>
+               <div style="margin-top:4px;">Error: <code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px;">${msg}</code></div>
+               <div style="margin-top:6px;font-weight:600;">Possible causes: internet connection issue, Supabase project paused, or API key expired. Try refreshing in a moment.</div>`
+          }
+          <button onclick="location.reload()" style="margin-top:10px;padding:6px 18px;background:#fff;color:#7f1d1d;border:none;border-radius:6px;font-weight:700;cursor:pointer;">🔄 Retry</button>
+          <button onclick="this.parentElement.parentElement.remove()" style="margin-top:10px;margin-left:10px;padding:6px 18px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:6px;font-weight:600;cursor:pointer;">Dismiss</button>
+        </div>`;
+      document.body.prepend(banner);
+    };
+
     try {
       await tryLoad();
     } catch(err) {
@@ -3783,7 +3809,7 @@
         await tryLoad();
       } catch(err2) {
         console.error('Supabase load error:', err2);
-        showToast('⚠️ Could not load data. Check your connection and refresh.');
+        showDBError(err2);
       }
     } finally {
       hideLoader();
