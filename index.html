@@ -912,16 +912,16 @@
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active"  onclick="switchTab('patients',this)"     data-icon="📋" data-label="Patients">📋 Patient List</button>
-  <button class="tab-btn"         onclick="switchTab('staff',this)"         data-icon="👥" data-label="Staff">👥 Staff Directory</button>
+  <button class="tab-btn active"  onclick="switchTab('staff',this)"         data-icon="👥" data-label="Staff">👥 Staff Directory</button>
+  <button class="tab-btn"         onclick="switchTab('patients',this)"      data-icon="📋" data-label="Patients">📋 Patient List</button>
   <button class="tab-btn"         onclick="switchTab('caseload',this)"      data-icon="📊" data-label="Caseload">📊 Caseload Distribution</button>
-  <button class="tab-btn"         onclick="switchTab('schedule',this)"      data-icon="📅" data-label="Schedule">📅 Patient Scheduling</button>
   <button class="tab-btn"         onclick="switchTab('allpatients',this)"   data-icon="🗓" data-label="All Pts">🗓 All Patients</button>
+  <button class="tab-btn"         onclick="switchTab('schedule',this)"      data-icon="📅" data-label="Schedule">📅 Patient Scheduling</button>
   <button class="tab-btn"         onclick="switchTab('appointments',this)"  data-icon="🏥" data-label="Appt/Sick">🏥 Appointment / Sick</button>
 </div>
 
 <!-- ═══ PATIENTS ═══ -->
-<div id="page-patients" class="page active">
+<div id="page-patients" class="page">
   <div class="container">
     <div class="stats-bar">
       <div class="stat-card">
@@ -986,7 +986,7 @@
 </div>
 
 <!-- ═══ STAFF ═══ -->
-<div id="page-staff" class="page">
+<div id="page-staff" class="page active">
   <div class="container">
     <div class="stats-bar">
       <div class="stat-card"><div class="stat-label">Total Staff</div><div class="stat-value" id="stat-staff-total">0</div></div>
