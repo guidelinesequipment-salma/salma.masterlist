@@ -1377,6 +1377,11 @@
           <label class="form-label">Sessions / Week</label>
           <input class="form-input" id="f-freq" type="number" min="1" max="21" placeholder="e.g. 5">
         </div>
+        <div class="form-group">
+          <label class="form-label">Evaluation Date</label>
+          <input class="form-input" id="f-eval-date" type="date">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Used as starting point for re-assessment due dates</div>
+        </div>
       </div>
       <div class="form-section-title">Therapist Assignment</div>
       <!-- Recommendation panel — updates live as gender/category are selected -->
@@ -1576,6 +1581,7 @@
     primary_therapist: p.primary || null, secondary_therapist: p.secondary || null, tertiary_therapist: p.tertiary || null,
     insurance: p.insurance || null, category: p.category || null, details: p.details || null,
     archived: p.archived || false,
+    eval_date: p.eval_date || null,
   });
   const rowToPatient = r => ({
     id: r.id, name: r.name, mrn: r.mrn || '', ward: r.ward, room: r.room,
@@ -1583,6 +1589,7 @@
     primary: r.primary_therapist || '', secondary: r.secondary_therapist || '', tertiary: r.tertiary_therapist || '',
     insurance: r.insurance || '', category: r.category || '', details: r.details || '',
     archived: r.archived || false,
+    eval_date: r.eval_date || '',
   });
   const staffToRow = s => ({
     id: s.id, name: s.name, discipline: s.discipline,
@@ -2309,6 +2316,7 @@
       document.getElementById('f-room').value      = p.room      || '';
       document.getElementById('f-gender').value    = p.gender    || '';
       document.getElementById('f-freq').value      = p.freq      || '';
+      document.getElementById('f-eval-date').value = p.eval_date || '';
       document.getElementById('f-primary').value   = p.primary   || '';
       document.getElementById('f-secondary').value = p.secondary || '';
       document.getElementById('f-tertiary').value  = p.tertiary  || '';
@@ -2317,6 +2325,7 @@
       document.getElementById('f-details').value   = p.details   || '';
     } else {
       ['f-name','f-mrn','f-room','f-freq'].forEach(id => document.getElementById(id).value='');
+      document.getElementById('f-eval-date').value = '';
       ['f-ward','f-gender','f-primary','f-secondary','f-tertiary','f-insurance','f-category','f-details'].forEach(id => document.getElementById(id).value='');
     }
     onInsuranceChange();
@@ -2329,10 +2338,11 @@
     if (!name||!ward) { showToast('⚠️ Please fill in Name and Ward.'); return; }
     const data = {
       name, ward,
-      mrn:    document.getElementById('f-mrn').value.trim(),
-      room:   document.getElementById('f-room').value.trim(),
-      gender: document.getElementById('f-gender').value,
-      freq:   document.getElementById('f-freq').value,
+      mrn:       document.getElementById('f-mrn').value.trim(),
+      room:      document.getElementById('f-room').value.trim(),
+      gender:    document.getElementById('f-gender').value,
+      freq:      document.getElementById('f-freq').value,
+      eval_date: document.getElementById('f-eval-date').value || null,
       primary:   document.getElementById('f-primary').value,
       secondary: document.getElementById('f-secondary').value,
       tertiary:  document.getElementById('f-tertiary').value,
@@ -2344,10 +2354,21 @@
       const idx = patients.findIndex(p=>p.id===editingPatientId);
       patients[idx] = { ...patients[idx], ...data };
       await savePatientRow(patients[idx]);
+      // Sync eval_date → reassessments last_eval_date (only if no existing last_eval_date or patient set a new one)
+      if (data.eval_date) {
+        const ra = reassessments[editingPatientId] || {};
+        if (!ra.last_eval_date || ra.last_eval_date !== data.eval_date) {
+          await saveReassessment(editingPatientId, 'last_eval_date', data.eval_date);
+        }
+      }
     } else {
       const newP = { id:uid(), ...data };
       patients.push(newP);
       await savePatientRow(newP);
+      // Sync eval_date → reassessments last_eval_date for new patient
+      if (data.eval_date) {
+        await saveReassessment(newP.id, 'last_eval_date', data.eval_date);
+      }
     }
     closePatientModal(); renderPatients();
   }
@@ -4379,10 +4400,11 @@
     // Annotate with due info
     const annotated = raPats.map(p => {
       const ra          = reassessments[p.id] || {};
-      const lastEval    = ra.last_eval_date    || '';
-      const completed   = ra.completed_date    || '';
-      const sig         = ra.signature         || '';
-      const comments    = ra.comments          || '';
+      // Use reassessment last_eval_date; fall back to patient's eval_date if none set yet
+      const lastEval    = ra.last_eval_date || p.eval_date || '';
+      const completed   = ra.completed_date || '';
+      const sig         = ra.signature      || '';
+      const comments    = ra.comments       || '';
       const dueDate     = calcDueDate(lastEval, p.category, p.insurance);
       const status      = getDueStatus(dueDate, completed);
       return { p, ra, lastEval, completed, sig, comments, dueDate, status };
@@ -4454,7 +4476,19 @@
   async function onRaDateChange(input) {
     const { pid, field } = input.dataset;
     await saveReassessment(pid, field, input.value);
-    // Re-render to update due date badge and row colour
+
+    // When date completed is entered → automatically update last_eval_date to match
+    // and sync back to the patient's eval_date field
+    if (field === 'completed_date' && input.value) {
+      await saveReassessment(pid, 'last_eval_date', input.value);
+      // Also update the patient record's eval_date
+      const idx = patients.findIndex(p => p.id === pid);
+      if (idx !== -1) {
+        patients[idx].eval_date = input.value;
+        await savePatientRow(patients[idx]);
+      }
+    }
+    // Re-render to update due date badge, row colour, and last eval field
     renderReassessment();
   }
 
