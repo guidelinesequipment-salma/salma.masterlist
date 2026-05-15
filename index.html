@@ -3120,11 +3120,6 @@
         ? `<span style="font-size:10px;color:var(--red);white-space:nowrap;margin-left:auto;font-weight:700;" title="⚡ Joint session — over frequency">${scheduledWithJoint}/${freq}× ⚡</span>`
         : `<span style="font-size:10px;color:var(--text-muted);white-space:nowrap;margin-left:auto;">${scheduled}/${freq}×</span>`;
 
-      const missingBadge = missing > 0
-        ? `<span class="ap-missing-dot" title="${missing} session${missing>1?'s':''} missing"></span>
-           <span class="ap-missing-count">-${missing}</span>`
-        : '';
-
       return `
         <tr class="${rowClass}">
           <td>
