@@ -3144,7 +3144,7 @@
       const seenByPTToday = otherTherapistsToday.some(t => t.discipline === 'PT' && t.id !== therapist.id);
       const isJointAllowed = isOtSlpTherapist && seenByPTToday && !alreadyHere;
       const effectiveBusy = busyElsewhere && !isJointAllowed;
-      const disabled      = alreadyHere || effectiveBusy || sessMaxed || hasAppt;
+      const disabled      = alreadyHere || effectiveBusy || sessMaxed;
       const role          = assigned ? getPatientRole(therapist, p) : 'primary';
       const slotCost      = getSlotWeight(p);
       const wouldExceed   = (daySlots + slotCost) > SLOT_CAP;
@@ -3153,10 +3153,10 @@
       const freq          = parseInt(p.freq) || 0;
 
       let hint = '';
-      if (hasAppt)              hint = ' · 🏥 has appointment';
-      else if (alreadyHere)     hint = ' · already here';
+      if (alreadyHere)          hint = ' · already here';
       else if (effectiveBusy)   hint = ' · busy today';
       else if (sessMaxed)       hint = ` · sessions maxed (${used}/${allowed})`;
+      else if (hasAppt)         hint = ` · 🏥 appt day`;
       else if (isJointAllowed)  hint = ` · ⚡ Joint session — will flag ${currentTotal+1}/${freq}`;
       else if (wouldExceed)     hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${SLOT_CAP})`;
       else                      hint = ` · ${used}/${allowed} sessions`;
@@ -3651,8 +3651,7 @@
       const available = workDays.filter(d =>
         !patientDays[patId]?.has(d) &&
         !isTherapistAbsentOnDay(tid, d) &&
-        !isDayClosed(tid, d) &&
-        !(appointments[d]?.has(patId))
+        !isDayClosed(tid, d)
       );
       if (!available.length) return null;
 
@@ -4092,15 +4091,6 @@
     if (appointments[day].has(patientId)) return;
     const type = apptSelectedType;
     appointments[day].set(patientId, type);
-
-    // Remove from schedule for this day across all therapists
-    let schedChanged = false;
-    Object.values(schedule).forEach(days => {
-      const before = (days[day]||[]).length;
-      days[day] = (days[day]||[]).filter(e => e.patientId !== patientId);
-      if (days[day].length !== before) schedChanged = true;
-    });
-    if (schedChanged) await saveSchedule();
 
     // Save to Supabase — ignore if already exists (unique constraint)
     const res = await fetch(`${SUPA_URL}/rest/v1/appointments`, {
