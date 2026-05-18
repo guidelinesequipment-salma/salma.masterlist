@@ -3735,15 +3735,33 @@
     const preAutoSchedule = JSON.parse(JSON.stringify(schedule));
     takeUndoSnapshot();
 
-    // ── Preserve manually-assigned slots ──
-    // Build a fresh schedule seeded with only the manual slots
+    // ── Preserve manually-assigned slots AND all slots on closed days ──
+    // Build a fresh schedule seeded with preserved slots
     const preserved = {};
-    const preservedPatientDays = {}; // patientId → Set<day> (days already locked by manual slots)
+    const preservedPatientDays = {}; // patientId → Set<day> (days already locked)
     staff.forEach(s => {
       preserved[s.id] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
     });
+
+    // 1. Preserve all slots on closed days (regardless of manual flag)
+    staff.forEach(s => {
+      DAYS.forEach(day => {
+        if (isDayClosed(s.id, day)) {
+          const entries = preAutoSchedule[s.id]?.[day] || [];
+          entries.forEach(e => {
+            preserved[s.id][day].push({ ...e });
+            if (!preservedPatientDays[e.patientId]) preservedPatientDays[e.patientId] = new Set();
+            preservedPatientDays[e.patientId].add(day);
+          });
+        }
+      });
+    });
+
+    // 2. Also preserve manually-assigned slots on open days
     manualSlots.forEach(key => {
       const [tid, day, patientId] = key.split('|');
+      // Skip if already preserved by closed-day rule
+      if (isDayClosed(tid, day)) return;
       if (!preserved[tid]) preserved[tid] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
       const existingEntry = (preAutoSchedule[tid]?.[day] || []).find(e => e.patientId === patientId);
       if (existingEntry) {
@@ -3996,13 +4014,10 @@
   }
 
   function clearSchedule() {
-    const hasClosedDays = closedDays.size > 0 && [...closedDays.values()].some(s => s.size > 0);
     openSchedConfirm(
       '🗑️', 'Clear Week Schedule',
-      hasClosedDays
-        ? 'This will remove all scheduled sessions for the entire week, except days marked as Closed. You can undo this immediately after.'
-        : 'This will remove all scheduled sessions for the entire week. You can undo this immediately after.',
-      'Clear Schedule',
+      'This will remove ALL scheduled sessions, leave, and absent status for the entire week. This cannot be undone after confirming.',
+      'Clear Everything',
       _runClearSchedule
     );
   }
@@ -4010,29 +4025,28 @@
   async function _runClearSchedule() {
     takeUndoSnapshot();
 
-    // Build a new schedule that preserves only closed-day slots
-    const preserved = {};
+    // Clear entire schedule — no preserving closed days (user asked for everything clean)
+    const fresh = {};
     staff.forEach(s => {
-      preserved[s.id] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
-      DAYS.forEach(day => {
-        if (isDayClosed(s.id, day)) {
-          // Keep existing slots for this closed day
-          preserved[s.id][day] = (schedule[s.id]?.[day] || []).slice();
-        }
-        // else: leave as empty array (cleared)
-      });
+      fresh[s.id] = { mon:[], tue:[], wed:[], thu:[], fri:[] };
     });
-
-    // Remove manual slot markers only for slots that were actually cleared
-    manualSlots.forEach(key => {
-      const [tid, day] = key.split('|');
-      if (!isDayClosed(tid, day)) manualSlots.delete(key);
-    });
-
-    schedule = preserved;
+    manualSlots.clear();
+    schedule = fresh;
     await saveSchedule();
+
+    // Clear all leave/absent/closed state in memory
+    absentIds.clear();
+    absentDays.clear();
+    closedDays.clear();
+
+    // Delete all therapist_status rows from Supabase
+    await fetch(`${SUPA_URL}/rest/v1/therapist_status?id=gte.0`, {
+      method: 'DELETE', headers: HEADERS
+    });
+
     renderSchedule();
     renderAllPatients();
+    showToast('✅ Week cleared — schedule, leaves, and absents all reset.');
   }
   (async () => {
     showLoader('Loading data…');
