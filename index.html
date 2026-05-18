@@ -3557,11 +3557,26 @@
     showToast('↩ Schedule restored.');
   }
 
-  // ── Presets (stored in localStorage) ──
-  function getPresets() {
-    try { return JSON.parse(localStorage.getItem('rehab_sched_presets') || '[]'); } catch { return []; }
+  // ── Presets — stored in Supabase for cross-device access ──
+  let _presets = [];  // in-memory cache, loaded on bootstrap
+
+  async function loadPresets() {
+    const rows = await sbGet('schedule_presets');
+    _presets = rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      savedAt: new Date(r.saved_at).getTime(),
+      slotCount: r.slot_count || 0,
+      schedule:    JSON.parse(r.schedule_data    || '{}'),
+      manualSlots: JSON.parse(r.manual_slots     || '[]'),
+      absentIds:   JSON.parse(r.absent_ids       || '[]'),
+      absentDays:  JSON.parse(r.absent_days      || '{}'),
+      closedDays:  JSON.parse(r.closed_days      || '{}'),
+    })).sort((a, b) => b.savedAt - a.savedAt);
   }
-  function savePresets(arr) { localStorage.setItem('rehab_sched_presets', JSON.stringify(arr)); }
+
+  function getPresets() { return _presets; }
+  async function savePresets(arr) { _presets = arr; /* individual ops handle DB writes */ }
 
   function openPresetModal() {
     document.getElementById('preset-modal').classList.add('open');
@@ -3588,32 +3603,40 @@
       </div>`).join('');
   }
 
-  function savePreset() {
+  async function savePreset() {
     const name = document.getElementById('preset-name-input').value.trim();
     if (!name) { showToast('⚠️ Enter a preset name first.'); return; }
+
     const slotCount = Object.values(schedule).reduce((n, days) =>
       n + Object.values(days).reduce((m, arr) => m + arr.length, 0), 0);
 
     // Snapshot absent/leave state
     const absentDaysObj = {};
-    absentDays.forEach((days, tid) => { absentDaysObj[tid] = [...days]; });
+    absentDays.forEach((days, tid) => { if (days.size) absentDaysObj[tid] = [...days]; });
     const closedDaysObj = {};
-    closedDays.forEach((days, tid) => { closedDaysObj[tid] = [...days]; });
+    closedDays.forEach((days, tid) => { if (days.size) closedDaysObj[tid] = [...days]; });
 
-    const presets = getPresets();
-    presets.unshift({
+    const row = {
       name,
-      schedule: JSON.parse(JSON.stringify(schedule)),
-      manualSlots: [...manualSlots],
-      savedAt: Date.now(),
-      slotCount,
-      absentIds:  [...absentIds],
-      absentDays: absentDaysObj,
-      closedDays: closedDaysObj,
+      slot_count:    slotCount,
+      saved_at:      new Date().toISOString(),
+      schedule_data: JSON.stringify(schedule),
+      manual_slots:  JSON.stringify([...manualSlots]),
+      absent_ids:    JSON.stringify([...absentIds]),
+      absent_days:   JSON.stringify(absentDaysObj),
+      closed_days:   JSON.stringify(closedDaysObj),
+    };
+
+    const res = await fetch(`${SUPA_URL}/rest/v1/schedule_presets`, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Prefer': 'return=representation' },
+      body: JSON.stringify(row),
     });
-    savePresets(presets);
+    if (!res.ok) { showToast('⚠️ Failed to save preset. Check connection.'); return; }
+
+    await loadPresets();
     renderPresetList();
-    showToast(`✅ Preset "${name}" saved (includes leave & absent status).`);
+    showToast(`✅ Preset "${name}" saved — includes leave & absent status.`);
     document.getElementById('preset-name-input').value = '';
   }
 
@@ -3677,13 +3700,18 @@
 
   function deletePreset(idx) {
     const presets = getPresets();
-    const name = presets[idx]?.name || 'this preset';
+    const preset = presets[idx];
+    if (!preset) return;
     openSchedConfirm('🗑️', 'Delete Preset',
-      `Delete "${name}"? This cannot be undone.`,
+      `Delete "${preset.name}"? This cannot be undone.`,
       'Delete',
-      () => {
-        presets.splice(idx, 1);
-        savePresets(presets);
+      async () => {
+        if (preset.id) {
+          await fetch(`${SUPA_URL}/rest/v1/schedule_presets?id=eq.${preset.id}`,
+            { method: 'DELETE', headers: HEADERS }
+          );
+        }
+        await loadPresets();
         renderPresetList();
         showToast('Preset deleted.');
       }
@@ -4010,13 +4038,14 @@
     showLoader('Loading data…');
 
     const tryLoad = async (attempt) => {
-      const [patRows, staffRows, schedRows, apptRows, raRows, statusRows] = await Promise.all([
+      const [patRows, staffRows, schedRows, apptRows, raRows, statusRows, presetRows] = await Promise.all([
         sbGet('patients'),
         sbGet('staff'),
         sbGet('schedule_slots'),
         sbGet('appointments'),
         sbGet('reassessments'),
         sbGet('therapist_status'),
+        sbGet('schedule_presets'),
       ]);
       patients = patRows.map(rowToPatient);
       staff    = staffRows.map(rowToStaff);
@@ -4030,7 +4059,18 @@
       apptRows.forEach(r => { if (appointments[r.day]) appointments[r.day].set(r.patient_id, r.type || 'appointment'); });
       reassessments = {};
       raRows.forEach(r => { reassessments[r.patient_id] = r; });
-      // Load therapist status (leave / absent_day / closed_day)
+      // Load presets
+      _presets = presetRows.map(r => ({
+        id: r.id,
+        name: r.name,
+        savedAt: new Date(r.saved_at).getTime(),
+        slotCount: r.slot_count || 0,
+        schedule:    JSON.parse(r.schedule_data    || '{}'),
+        manualSlots: JSON.parse(r.manual_slots     || '[]'),
+        absentIds:   JSON.parse(r.absent_ids       || '[]'),
+        absentDays:  JSON.parse(r.absent_days      || '{}'),
+        closedDays:  JSON.parse(r.closed_days      || '{}'),
+      })).sort((a, b) => b.savedAt - a.savedAt);
       absentIds.clear(); absentDays.clear(); closedDays.clear();
       statusRows.forEach(r => {
         if (r.status_type === 'leave') {
