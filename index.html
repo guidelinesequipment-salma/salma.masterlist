@@ -3971,10 +3971,83 @@
       }
     });
 
+    // ══════════════════════════════════════════
+    //  FLOATER PASS
+    //  After normal scheduling, check each day for therapists exceeding 10 slots.
+    //  PT floaters (no primary/secondary/tertiary assigned) can take over secondary
+    //  sessions from overloaded therapists to even out the daily caseload.
+    //  Rules:
+    //   - Floater must be PT discipline
+    //   - Floater must not be absent/on-leave that day
+    //   - Floater must work that day
+    //   - Female patient → female floater only
+    //   - Patient must not already be seen twice by different therapists that day
+    //   - Slot cap (14) still applies to the floater
+    // ══════════════════════════════════════════
+    const FLOATER_THRESHOLD = 10; // slots/day above which we redistribute
+
+    const floaters = staff.filter(s =>
+      s.discipline === 'PT' &&
+      !absentIds.has(s.id) &&
+      !patients.some(p =>
+        !p.archived && (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name)
+      )
+    );
+
+    if (floaters.length) {
+      DAYS.forEach(day => {
+        // Find overloaded therapists on this day
+        staff.forEach(overloaded => {
+          if (absentIds.has(overloaded.id)) return;
+          if (isTherapistAbsentOnDay(overloaded.id, day)) return;
+          if (getTherapistDaySlots(overloaded.id, day) <= FLOATER_THRESHOLD) return;
+
+          // Get patients scheduled on this day for the overloaded therapist
+          // Only consider secondary-role patients (to preserve primary assignments)
+          const secondarySlots = (schedule[overloaded.id]?.[day] || [])
+            .filter(e => e.role === 'secondary');
+
+          secondarySlots.forEach(entry => {
+            // Re-check slots — may have dropped below threshold already
+            if (getTherapistDaySlots(overloaded.id, day) <= FLOATER_THRESHOLD) return;
+
+            const pat = patients.find(p => p.id === entry.patientId && !p.archived);
+            if (!pat) return;
+
+            // Find best available floater for this patient on this day
+            const candidate = floaters
+              .filter(f => {
+                const fWorkDays = f.workDays || DAYS;
+                if (!fWorkDays.includes(day)) return false;
+                if (isTherapistAbsentOnDay(f.id, day)) return false;
+                if (pat.gender === 'female' && f.gender === 'male') return false;
+                // Floater must not already have this patient today
+                if ((schedule[f.id]?.[day] || []).some(e => e.patientId === pat.id)) return false;
+                // Slot cap
+                ensureTherapistSlot(f.id);
+                if (getTherapistDaySlots(f.id, day) + getSlotWeight(pat) > SLOT_CAP) return false;
+                return true;
+              })
+              .sort((a, b) => getTherapistDaySlots(a.id, day) - getTherapistDaySlots(b.id, day));
+
+            if (!candidate.length) return;
+
+            const floater = candidate[0];
+            ensureTherapistSlot(floater.id);
+
+            // Move the slot from overloaded to floater
+            schedule[overloaded.id][day] = schedule[overloaded.id][day]
+              .filter(e => e.patientId !== pat.id);
+            schedule[floater.id][day].push({ patientId: pat.id, role: 'secondary' });
+          });
+        });
+      });
+    }
+
     await saveSchedule();
     renderSchedule();
     renderAllPatients();
-  }
+  }  // end _runAutoSchedule
 
   function clearSchedule() {
     openSchedConfirm(
