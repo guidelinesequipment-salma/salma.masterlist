@@ -3593,11 +3593,27 @@
     if (!name) { showToast('⚠️ Enter a preset name first.'); return; }
     const slotCount = Object.values(schedule).reduce((n, days) =>
       n + Object.values(days).reduce((m, arr) => m + arr.length, 0), 0);
+
+    // Snapshot absent/leave state
+    const absentDaysObj = {};
+    absentDays.forEach((days, tid) => { absentDaysObj[tid] = [...days]; });
+    const closedDaysObj = {};
+    closedDays.forEach((days, tid) => { closedDaysObj[tid] = [...days]; });
+
     const presets = getPresets();
-    presets.unshift({ name, schedule: JSON.parse(JSON.stringify(schedule)), manualSlots: [...manualSlots], savedAt: Date.now(), slotCount });
+    presets.unshift({
+      name,
+      schedule: JSON.parse(JSON.stringify(schedule)),
+      manualSlots: [...manualSlots],
+      savedAt: Date.now(),
+      slotCount,
+      absentIds:  [...absentIds],
+      absentDays: absentDaysObj,
+      closedDays: closedDaysObj,
+    });
     savePresets(presets);
     renderPresetList();
-    showToast(`✅ Preset "${name}" saved.`);
+    showToast(`✅ Preset "${name}" saved (includes leave & absent status).`);
     document.getElementById('preset-name-input').value = '';
   }
 
@@ -3606,19 +3622,55 @@
     const p = presets[idx];
     if (!p) return;
     openSchedConfirm('📋', `Load Preset: ${p.name}`,
-      'This will replace the current schedule with the saved preset. Your current schedule will be available via Undo.',
+      'This will replace the current schedule and leave/absent status with the saved preset.',
       'Load Preset',
       async () => {
         takeUndoSnapshot();
+
+        // Restore schedule
         schedule = JSON.parse(JSON.stringify(p.schedule));
         manualSlots.clear();
         (p.manualSlots || []).forEach(k => manualSlots.add(k));
-        // Ensure all current staff have a slot entry
         staff.forEach(s => ensureTherapistSlot(s.id));
         await saveSchedule();
+
+        // Restore absent/leave state in memory
+        absentIds.clear();
+        absentDays.clear();
+        closedDays.clear();
+        (p.absentIds || []).forEach(tid => absentIds.add(tid));
+        Object.entries(p.absentDays || {}).forEach(([tid, days]) => {
+          absentDays.set(tid, new Set(days));
+        });
+        Object.entries(p.closedDays || {}).forEach(([tid, days]) => {
+          closedDays.set(tid, new Set(days));
+        });
+
+        // Sync absent/leave state to Supabase
+        // 1. Delete all existing status rows for all staff
+        await fetch(`${SUPA_URL}/rest/v1/therapist_status?id=gte.0`, {
+          method: 'DELETE', headers: HEADERS
+        });
+        // 2. Re-insert from preset
+        const rows = [];
+        absentIds.forEach(tid => rows.push({ therapist_id: tid, status_type: 'leave', day: null }));
+        absentDays.forEach((days, tid) => {
+          days.forEach(day => rows.push({ therapist_id: tid, status_type: 'absent_day', day }));
+        });
+        closedDays.forEach((days, tid) => {
+          days.forEach(day => rows.push({ therapist_id: tid, status_type: 'closed_day', day }));
+        });
+        if (rows.length) {
+          await fetch(`${SUPA_URL}/rest/v1/therapist_status`, {
+            method: 'POST',
+            headers: { ...HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(rows),
+          });
+        }
+
         renderSchedule();
         closePresetModal();
-        showToast(`📋 Preset "${p.name}" loaded.`);
+        showToast(`📋 Preset "${p.name}" loaded — schedule and leave status restored.`);
       }
     );
   }
