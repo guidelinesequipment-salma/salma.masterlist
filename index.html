@@ -2575,31 +2575,82 @@
   const DAY_FULL = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday' };
   const SLOT_CAP = 14;
 
-  // Absent therapist IDs — runtime only, not persisted
-  const absentIds  = new Set();   // full-week on leave
-  const absentDays = new Map();   // per-day: Map<therapistId, Set<day>>
-  // Closed days — auto-schedule won't add patients here (runtime only, not persisted)
-  const closedDays = new Map();   // Map<therapistId, Set<day>>
+  // ── Absent / Closed state — persisted in Supabase (therapist_status table) ──
+  // Synced across devices. In-memory sets are kept in sync with DB.
+  const absentIds  = new Set();   // therapist IDs on full-week leave
+  const absentDays = new Map();   // Map<therapistId, Set<day>> — per-day absent
+  const closedDays = new Map();   // Map<therapistId, Set<day>> — closed for auto-schedule
 
-  function toggleAbsent(tid) {
-    if (absentIds.has(tid)) absentIds.delete(tid);
-    else absentIds.add(tid);
+  async function loadTherapistStatus() {
+    const rows = await sbGet('therapist_status');
+    absentIds.clear();
+    absentDays.clear();
+    closedDays.clear();
+    rows.forEach(r => {
+      if (r.status_type === 'leave') {
+        absentIds.add(r.therapist_id);
+      } else if (r.status_type === 'absent_day' && r.day) {
+        if (!absentDays.has(r.therapist_id)) absentDays.set(r.therapist_id, new Set());
+        absentDays.get(r.therapist_id).add(r.day);
+      } else if (r.status_type === 'closed_day' && r.day) {
+        if (!closedDays.has(r.therapist_id)) closedDays.set(r.therapist_id, new Set());
+        closedDays.get(r.therapist_id).add(r.day);
+      }
+    });
+  }
+
+  async function _upsertStatus(therapistId, statusType, day) {
+    await fetch(`${SUPA_URL}/rest/v1/therapist_status`, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ therapist_id: therapistId, status_type: statusType, day: day || null }),
+    });
+  }
+
+  async function _deleteStatus(therapistId, statusType, day) {
+    const dayFilter = day ? `&day=eq.${day}` : `&day=is.null`;
+    await fetch(
+      `${SUPA_URL}/rest/v1/therapist_status?therapist_id=eq.${encodeURIComponent(therapistId)}&status_type=eq.${statusType}${dayFilter}`,
+      { method: 'DELETE', headers: HEADERS }
+    );
+  }
+
+  async function toggleAbsent(tid) {
+    if (absentIds.has(tid)) {
+      absentIds.delete(tid);
+      await _deleteStatus(tid, 'leave', null);
+    } else {
+      absentIds.add(tid);
+      await _upsertStatus(tid, 'leave', null);
+    }
     renderSchedule();
   }
 
-  function toggleDayAbsent(tid, day) {
+  async function toggleDayAbsent(tid, day) {
     if (!absentDays.has(tid)) absentDays.set(tid, new Set());
     const days = absentDays.get(tid);
-    if (days.has(day)) days.delete(day);
-    else days.add(day);
+    if (days.has(day)) {
+      days.delete(day);
+      await _deleteStatus(tid, 'absent_day', day);
+    } else {
+      days.add(day);
+      await _upsertStatus(tid, 'absent_day', day);
+    }
+    if (!days.size) absentDays.delete(tid);
     renderSchedule();
   }
 
-  function toggleClosedDay(tid, day) {
+  async function toggleClosedDay(tid, day) {
     if (!closedDays.has(tid)) closedDays.set(tid, new Set());
     const days = closedDays.get(tid);
-    if (days.has(day)) days.delete(day);
-    else days.add(day);
+    if (days.has(day)) {
+      days.delete(day);
+      await _deleteStatus(tid, 'closed_day', day);
+    } else {
+      days.add(day);
+      await _upsertStatus(tid, 'closed_day', day);
+    }
+    if (!days.size) closedDays.delete(tid);
     renderSchedule();
   }
 
@@ -3907,12 +3958,13 @@
     showLoader('Loading data…');
 
     const tryLoad = async (attempt) => {
-      const [patRows, staffRows, schedRows, apptRows, raRows] = await Promise.all([
+      const [patRows, staffRows, schedRows, apptRows, raRows, statusRows] = await Promise.all([
         sbGet('patients'),
         sbGet('staff'),
         sbGet('schedule_slots'),
         sbGet('appointments'),
         sbGet('reassessments'),
+        sbGet('therapist_status'),
       ]);
       patients = patRows.map(rowToPatient);
       staff    = staffRows.map(rowToStaff);
@@ -3926,6 +3978,19 @@
       apptRows.forEach(r => { if (appointments[r.day]) appointments[r.day].set(r.patient_id, r.type || 'appointment'); });
       reassessments = {};
       raRows.forEach(r => { reassessments[r.patient_id] = r; });
+      // Load therapist status (leave / absent_day / closed_day)
+      absentIds.clear(); absentDays.clear(); closedDays.clear();
+      statusRows.forEach(r => {
+        if (r.status_type === 'leave') {
+          absentIds.add(r.therapist_id);
+        } else if (r.status_type === 'absent_day' && r.day) {
+          if (!absentDays.has(r.therapist_id)) absentDays.set(r.therapist_id, new Set());
+          absentDays.get(r.therapist_id).add(r.day);
+        } else if (r.status_type === 'closed_day' && r.day) {
+          if (!closedDays.has(r.therapist_id)) closedDays.set(r.therapist_id, new Set());
+          closedDays.get(r.therapist_id).add(r.day);
+        }
+      });
     };
 
     const showDBError = (err) => {
