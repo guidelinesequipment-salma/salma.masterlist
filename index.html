@@ -3874,11 +3874,26 @@
       return candidates[0];
     };
 
+    // Count total sessions scheduled for a patient across ALL therapists this week
+    const totalScheduled = (patId) => {
+      let count = 0;
+      Object.values(schedule).forEach(days => {
+        DAYS.forEach(day => {
+          count += (days[day] || []).filter(e => e.patientId === patId).length;
+        });
+      });
+      return count;
+    };
+
     // Place `need` sessions of a patient under a therapist, return how many were placed
+    // Never exceeds patient's total weekly frequency across all therapists combined
     const placeSessions = (tid, pat, role, need) => {
       ensureTherapistSlot(tid);
+      const freq = parseInt(pat.freq) || 0;
       let placed = 0;
       while (placed < need) {
+        // Enforce total session cap across all therapists
+        if (totalScheduled(pat.id) >= freq) break;
         const day = pickBestDay(tid, pat.id, need);
         if (!day) break;
         schedule[tid][day].push({ patientId: pat.id, role });
@@ -4013,6 +4028,9 @@
 
             const pat = patients.find(p => p.id === entry.patientId && !p.archived);
             if (!pat) return;
+
+            // Don't move if patient is already at their weekly session cap
+            if (totalScheduled(pat.id) >= parseInt(pat.freq || 0)) return;
 
             // Find best available floater for this patient on this day
             const candidate = floaters
