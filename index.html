@@ -2582,24 +2582,6 @@
   const absentDays = new Map();   // Map<therapistId, Set<day>> — per-day absent
   const closedDays = new Map();   // Map<therapistId, Set<day>> — closed for auto-schedule
 
-  async function loadTherapistStatus() {
-    const rows = await sbGet('therapist_status');
-    absentIds.clear();
-    absentDays.clear();
-    closedDays.clear();
-    rows.forEach(r => {
-      if (r.status_type === 'leave') {
-        absentIds.add(r.therapist_id);
-      } else if (r.status_type === 'absent_day' && r.day) {
-        if (!absentDays.has(r.therapist_id)) absentDays.set(r.therapist_id, new Set());
-        absentDays.get(r.therapist_id).add(r.day);
-      } else if (r.status_type === 'closed_day' && r.day) {
-        if (!closedDays.has(r.therapist_id)) closedDays.set(r.therapist_id, new Set());
-        closedDays.get(r.therapist_id).add(r.day);
-      }
-    });
-  }
-
   async function _upsertStatus(therapistId, statusType, day) {
     await fetch(`${SUPA_URL}/rest/v1/therapist_status`, {
       method: 'POST',
@@ -3558,9 +3540,12 @@
   function undoSchedule() {
     if (!scheduleUndoSnapshot) return;
     schedule = scheduleUndoSnapshot;
-    manualSlots.clear();
-    if (manualSlotsUndoSnapshot) manualSlotsUndoSnapshot.forEach(k => manualSlots.add(k));
-    // Null out snapshots immediately to prevent double-undo during async save
+    // Restore manualSlots in bulk (avoid per-item localStorage writes)
+    const _msClearRaw = manualSlots.clear.bind(manualSlots);
+    _msClearRaw();
+    if (manualSlotsUndoSnapshot) {
+      manualSlotsUndoSnapshot.forEach(k => { manualSlots.add(k); });
+    }
     scheduleUndoSnapshot = null;
     manualSlotsUndoSnapshot = null;
     document.getElementById('sched-undo-btn').style.display = 'none';
@@ -3589,7 +3574,6 @@
   }
 
   function getPresets() { return _presets; }
-  async function savePresets(arr) { _presets = arr; /* individual ops handle DB writes */ }
 
   function openPresetModal() {
     document.getElementById('preset-modal').classList.add('open');
@@ -3972,9 +3956,8 @@
       const hasT = !!tertiaryT;
       const dist = calcSessions(freq, hasP, hasS, hasT);
 
-      // Count sessions already placed by manual/closed-day slots for this patient
-      const manualCount = totalScheduled(pat.id); // use totalScheduled for accuracy
-      if (manualCount >= freq) return; // fully covered — skip auto-scheduling
+      // Skip if patient is already fully scheduled (manual/closed-day slots already cover freq)
+      if (totalScheduled(pat.id) >= freq) return;
 
       const primaryAvail   = isAvailable(primaryT, pat);
       const secondaryAvail = isAvailable(secondaryT, pat);
@@ -4546,8 +4529,7 @@
     if (btn.dataset.action === 'remove-appt') removeAppointment(btn.dataset.pid, btn.dataset.day);
   });
   // ── Mobile utilities ──
-  const isMobile = () => window.innerWidth <= 768;
-
+  window.addEventListener('resize', () => { if (window.innerWidth <= 768) applyMobileSchedDay(); });
   let schedMobileDay = 'mon';
   function selectSchedDay(day, btn) {
     schedMobileDay = day;
@@ -4627,7 +4609,7 @@
     if (btn.dataset.action === 'unarchive') unarchivePatient(id);
   });
 
-  window.addEventListener('resize', () => { if (isMobile()) applyMobileSchedDay(); });
+  window.addEventListener('resize', () => { if (window.innerWidth <= 768) applyMobileSchedDay(); });
 
   // ══════════════════════════════════════════
   //  RE-ASSESSMENT
