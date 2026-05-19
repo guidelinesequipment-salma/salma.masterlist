@@ -2913,11 +2913,23 @@
     if (patient.primary   === therapist.name) return dist.p;
     if (patient.secondary === therapist.name) return dist.s;
     if (patient.tertiary  === therapist.name) return dist.t;
-    // OT and SLP can be manually assigned to any patient — allow up to full frequency
-    if (therapist.discipline === 'OT' || therapist.discipline === 'SLP') return freq;
-    // Unassigned therapist (no patients at all): allow up to the full frequency
-    if (isUnassignedTherapist(therapist.name)) return freq;
+    // OT and SLP floaters follow same rule as their base discipline
+    if (therapist.discipline === 'OT' || therapist.discipline === 'OT Floater' ||
+        therapist.discipline === 'SLP' || therapist.discipline === 'SLP Floater') return freq;
+    // Unassigned or floater therapist: allow up to the full frequency
+    if (isUnassignedTherapist(therapist.name) || isFloaterDisc(therapist.discipline)) return freq;
     return 0;
+  }
+
+  // Total sessions a patient has across ALL therapists this week
+  function getTotalPatientSessions(patientId) {
+    let count = 0;
+    Object.values(schedule).forEach(days => {
+      DAYS.forEach(day => {
+        count += (days[day] || []).filter(e => e.patientId === patientId).length;
+      });
+    });
+    return count;
   }
 
   // Role of a patient under a therapist
@@ -3185,37 +3197,42 @@
     }
 
     list.innerHTML = filtered.map(p => {
+      const freq      = parseInt(p.freq) || 0;
       const assigned  = p.primary === therapist.name || p.secondary === therapist.name || p.tertiary === therapist.name;
-      // For unassigned therapists: no session cap (use full freq as allowed)
-      const allowed   = assigned ? getAllowedSessions(therapist, p) : (parseInt(p.freq)||0);
+      const allowed   = assigned ? getAllowedSessions(therapist, p) : freq;
       const used      = getTherapistPatientCount(pickerTid, p.id);
-      const alreadyHere   = dayPatients.has(p.id);
-      const busyElsewhere = !alreadyHere && busyToday.has(p.id);
-      const sessMaxed     = assigned && used >= allowed;
-      const hasAppt       = !!(appointments[pickerDay]?.has(p.id));
-      // OT/SLP joint session rule: if patient is already seen by a PT on this day,
-      // OT and SLP are ALLOWED to be added as a joint session (not blocked by busyElsewhere)
-      const isOtSlpTherapist = therapist.discipline === 'OT' || therapist.discipline === 'SLP';
+      // Hard ceiling: total sessions across ALL therapists (including floaters) must not exceed freq
+      const totalAllTherapists = getTotalPatientSessions(p.id);
+      const alreadyHere    = dayPatients.has(p.id);
+      const busyElsewhere  = !alreadyHere && busyToday.has(p.id);
+      // sessMaxed: either this therapist's role allowance is met OR total across all is at freq
+      const sessMaxed      = (assigned && used >= allowed) || (totalAllTherapists >= freq);
+      const hasAppt        = !!(appointments[pickerDay]?.has(p.id));
+      // OT/SLP/OT Floater/SLP Floater joint session rule
+      const isOtSlpTherapist = therapist.discipline === 'OT' || therapist.discipline === 'SLP' ||
+                                therapist.discipline === 'OT Floater' || therapist.discipline === 'SLP Floater';
       const otherTherapistsToday = getTherapistsOnDay(p.id, pickerDay);
-      const seenByPTToday = otherTherapistsToday.some(t => t.discipline === 'PT' && t.id !== therapist.id);
+      const seenByPTToday  = otherTherapistsToday.some(t =>
+        (t.discipline === 'PT' || t.discipline === 'PT Floater') && t.id !== therapist.id
+      );
       const isJointAllowed = isOtSlpTherapist && seenByPTToday && !alreadyHere;
-      const effectiveBusy = busyElsewhere && !isJointAllowed;
-      const disabled      = alreadyHere || effectiveBusy || sessMaxed;
-      const role          = assigned ? getPatientRole(therapist, p) : 'primary';
-      const slotCost      = getSlotWeight(p);
-      const wouldExceed   = (daySlots + slotCost) > SLOT_CAP;
-      // Calculate what total session count would be after this joint addition
-      const currentTotal  = getPatientTotalScheduledWithJoint(p.id);
-      const freq          = parseInt(p.freq) || 0;
+      const effectiveBusy  = busyElsewhere && !isJointAllowed;
+      const disabled       = alreadyHere || effectiveBusy || sessMaxed;
+      const role           = assigned ? getPatientRole(therapist, p) : 'primary';
+      const slotCost       = getSlotWeight(p);
+      const effectiveCap   = isFloaterDisc(therapist.discipline) ? 10 : SLOT_CAP;
+      const wouldExceed    = (daySlots + slotCost) > effectiveCap;
+      const currentTotal   = getPatientTotalScheduledWithJoint(p.id);
 
       let hint = '';
-      if (alreadyHere)          hint = ' · already here';
-      else if (effectiveBusy)   hint = ' · busy today';
-      else if (sessMaxed)       hint = ` · sessions maxed (${used}/${allowed})`;
-      else if (hasAppt)         hint = ` · 🏥 appt day`;
-      else if (isJointAllowed)  hint = ` · ⚡ Joint session — will flag ${currentTotal+1}/${freq}`;
-      else if (wouldExceed)     hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${SLOT_CAP})`;
-      else                      hint = ` · ${used}/${allowed} sessions`;
+      if (alreadyHere)                  hint = ' · already here';
+      else if (effectiveBusy)           hint = ' · busy today';
+      else if (totalAllTherapists >= freq) hint = ` · freq reached (${totalAllTherapists}/${freq} total)`;
+      else if (sessMaxed)               hint = ` · sessions maxed (${used}/${allowed})`;
+      else if (hasAppt)                 hint = ` · 🏥 appt day`;
+      else if (isJointAllowed)          hint = ` · ⚡ Joint session — will flag ${currentTotal+1}/${freq}`;
+      else if (wouldExceed)             hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${effectiveCap})`;
+      else                              hint = ` · ${used}/${allowed} sessions`;
 
       const catClass = getPatientCatClass(p);
       const catDot = catClass ? `<span class="cat-dot ${catClass}" title="${(p.category||p.insurance||'')}"></span>` : '';
