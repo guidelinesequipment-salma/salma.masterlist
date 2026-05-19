@@ -1067,6 +1067,9 @@
       <select class="filter-select" id="filter-discipline" onchange="renderStaff()">
         <option value="">All Disciplines</option>
         <option>PT</option><option>OT</option><option>SLP</option>
+        <option value="PT Floater">PT Floater</option>
+        <option value="OT Floater">OT Floater</option>
+        <option value="SLP Floater">SLP Floater</option>
       </select>
       <button class="btn btn-primary" onclick="openStaffModal()">+ Add Staff</button>
     </div>
@@ -1091,6 +1094,9 @@
       <select class="filter-select" id="sched-filter-disc" onchange="renderSchedule()">
         <option value="">All Disciplines</option>
         <option>PT</option><option>OT</option><option>SLP</option>
+        <option value="PT Floater">PT Floater</option>
+        <option value="OT Floater">OT Floater</option>
+        <option value="SLP Floater">SLP Floater</option>
       </select>
       <button class="btn btn-ghost" id="sched-undo-btn" onclick="undoSchedule()" style="display:none;" title="Undo last clear or auto-schedule">↩ Undo</button>
       <button class="btn btn-ghost" onclick="openPresetModal()" title="Save or load schedule presets">📋 Presets</button>
@@ -1460,6 +1466,9 @@
             <option value="PT">PT — Physical Therapist</option>
             <option value="OT">OT — Occupational Therapist</option>
             <option value="SLP">SLP — Speech-Language Pathologist</option>
+            <option value="PT Floater">PT Floater (max 10 slots/day)</option>
+            <option value="OT Floater">OT Floater (max 10 slots/day)</option>
+            <option value="SLP Floater">SLP Floater (max 10 slots/day)</option>
           </select>
         </div>
         <div class="form-group">
@@ -1635,11 +1644,17 @@
   }
 
   // ── Module-level constants ──
-  const DISC_COLORS  = { PT: '#7a1c1c', OT: '#065f46', SLP: '#1565a0' };
+  const DISC_COLORS  = {
+    'PT': '#7a1c1c', 'OT': '#065f46', 'SLP': '#1565a0',
+    'PT Floater': '#a0522d', 'OT Floater': '#0e7040', 'SLP Floater': '#1976d2',
+  };
   const DISCIPLINES  = [
-    { key: 'PT',  label: 'Physical Therapy',          icon: '🦵' },
-    { key: 'OT',  label: 'Occupational Therapy',      icon: '🤲' },
-    { key: 'SLP', label: 'Speech-Language Pathology', icon: '🗣️' },
+    { key: 'PT',         label: 'Physical Therapy',                icon: '🦵' },
+    { key: 'OT',         label: 'Occupational Therapy',            icon: '🤲' },
+    { key: 'SLP',        label: 'Speech-Language Pathology',       icon: '🗣️' },
+    { key: 'PT Floater', label: 'PT Floater (max 10 slots/day)',   icon: '🦵🔄' },
+    { key: 'OT Floater', label: 'OT Floater (max 10 slots/day)',   icon: '🤲🔄' },
+    { key: 'SLP Floater',label: 'SLP Floater (max 10 slots/day)',  icon: '🗣️🔄' },
   ];
   const DAY_LABELS  = { mon:'M', tue:'T', wed:'W', thu:'Th', fri:'F' };
   const WARD_ORDER  = { 'Ward A': 0, 'Ward B': 1, 'ICU 1': 2, 'ICU 2': 3 };
@@ -1651,6 +1666,12 @@
     if (wa !== wb) return wa - wb;
     return (a.room||'').localeCompare(b.room||'', undefined, { numeric: true, sensitivity: 'base' });
   });
+
+  // Returns true if the discipline is a floater type (max 10 slots/day)
+  const isFloaterDisc = (disc) => disc === 'PT Floater' || disc === 'OT Floater' || disc === 'SLP Floater';
+
+  // Base discipline for a floater (e.g. 'PT Floater' → 'PT')
+  const baseDisc = (disc) => isFloaterDisc(disc) ? disc.split(' ')[0] : disc;
 
   // Low-cost insurance check
   const isLowCostIns = p => p.insurance === 'Low-cost' || p.insurance === 'ABM';
@@ -2952,11 +2973,12 @@
             </td>`;
         }
 
-        // ── Daily slot meter ──
-        const daySlots  = getTherapistDaySlots(s.id, day);
-        const isOverCap = daySlots > SLOT_CAP;
-        const slotPct   = Math.min(100, Math.round((daySlots / SLOT_CAP) * 100));
-        const slotColor = isOverCap ? 'var(--red)' : daySlots >= 12 ? '#d97706' : 'var(--accent)';
+        // ── Daily slot meter (floater disciplines cap at 10, others at 14) ──
+        const daySlots   = getTherapistDaySlots(s.id, day);
+        const effectiveCap = isFloaterDisc(s.discipline) ? 10 : SLOT_CAP;
+        const isOverCap  = daySlots > effectiveCap;
+        const slotPct    = Math.min(100, Math.round((daySlots / effectiveCap) * 100));
+        const slotColor  = isOverCap ? 'var(--red)' : daySlots >= (effectiveCap - 2) ? '#d97706' : 'var(--accent)';
 
         const slots = entries.map((e, idx) => {
           const pat = patients.find(p => p.id === e.patientId);
@@ -3012,7 +3034,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:4px;">
               <div style="flex:1;">
                 <div style="display:flex;justify-content:space-between;font-size:9.5px;color:${slotColor};font-weight:600;margin-bottom:2px;">
-                  <span>Slots</span><span>${daySlots.toFixed(daySlots % 1 ? 1 : 0)}/${SLOT_CAP}${isOverCap ? ' ⚠' : ''}${isDayClosed(s.id, day) ? ' 🔒' : ''}</span>
+                  <span>Slots</span><span>${daySlots.toFixed(daySlots % 1 ? 1 : 0)}/${effectiveCap}${isOverCap ? ' ⚠' : ''}${isDayClosed(s.id, day) ? ' 🔒' : ''}</span>
                 </div>
                 <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;">
                   <div style="height:100%;width:${slotPct}%;background:${slotColor};border-radius:2px;transition:width 0.2s;"></div>
@@ -3843,16 +3865,23 @@
       return true;
     };
 
-    // Floaters: PT therapists with no assigned patients
+    // Floaters: any therapist with a floater discipline OR PT with no assigned patients
     const floaterPTs = staff.filter(s =>
-      s.discipline === 'PT' &&
-      !absentIds.has(s.id) &&
-      !patients.some(p =>
-        !p.archived && (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name)
+      !absentIds.has(s.id) && (
+        isFloaterDisc(s.discipline) ||
+        (s.discipline === 'PT' && !patients.some(p =>
+          !p.archived && (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name)
+        ))
       )
     );
 
-    // Find best floater PT for a patient (used in absence fallback)
+    // isFloater: therapist is a floater (by discipline or unassigned PT)
+    const isFloater = (tid) => floaterPTs.some(f => f.id === tid);
+
+    const FLOATER_THRESHOLD = 10; // daily weighted slots above which we redistribute
+    const FLOATER_CAP       = 10; // max daily weighted slots a floater can hold
+
+    // Find best floater for a patient (used in absence fallback)
     // Floater daily cap is 10 slots (not 14)
     const findFloaterPT = (pat) => {
       const candidates = floaterPTs.filter(f => {
@@ -3875,10 +3904,10 @@
       const isFemalePatient = pat.gender === 'female';
       const candidates = staff.filter(sub => {
         if (absentIds.has(sub.id)) return false;
-        if (sub.discipline === 'SLP') return false;
+        // SLP and SLP Floater never used as substitutes
+        if (sub.discipline === 'SLP' || sub.discipline === 'SLP Floater') return false;
         if (!isAvailable(sub, pat)) return false;
         if (sub.name === pat.primary || sub.name === pat.secondary || sub.name === pat.tertiary) return false;
-        // Female patients → female therapist only; male patients → any
         if (isFemalePatient && sub.gender === 'male') return false;
         return true;
       });
@@ -3892,12 +3921,6 @@
       return candidates[0];
     };
 
-    const FLOATER_THRESHOLD = 10; // daily weighted slots above which we redistribute
-    const FLOATER_CAP       = 10; // max daily weighted slots a floater can hold
-
-    // Is this therapist a floater (PT with no assigned patients)?
-    const isFloater = (tid) => floaterPTs.some(f => f.id === tid);
-
     // Count total sessions scheduled for a patient across ALL therapists this week
     const totalScheduled = (patId) => {
       let count = 0;
@@ -3909,7 +3932,6 @@
       return count;
     };
 
-    // Place `need` sessions of a patient under a therapist, return how many were placed.
     // Strictly enforces: totalScheduled(patient) never exceeds patient.freq across ALL therapists.
     // Floaters capped at FLOATER_CAP (10) slots/day; others at SLOT_CAP (14).
     const placeSessions = (tid, pat, role, need) => {
@@ -3945,25 +3967,24 @@
       patientDays[pat.id] = patientDays[pat.id] || new Set();
       const freq = parseInt(pat.freq);
 
-      // Verify actual staff assignment (handles empty-string from Supabase)
+      // Look up actual staff for each role — handles empty/null strings from Supabase
       const primaryT   = pat.primary   ? staff.find(s => s.name === pat.primary)   : null;
       const secondaryT = pat.secondary ? staff.find(s => s.name === pat.secondary) : null;
       const tertiaryT  = pat.tertiary  ? staff.find(s => s.name === pat.tertiary)  : null;
 
-      // Use actual staff existence for calcSessions, not raw string truthiness
+      // Derive session split from actual staff presence (not raw string values)
       const hasP = !!primaryT;
       const hasS = !!secondaryT;
       const hasT = !!tertiaryT;
       const dist = calcSessions(freq, hasP, hasS, hasT);
 
-      // Skip if patient is already fully scheduled (manual/closed-day slots already cover freq)
+      // Skip if already fully scheduled
       if (totalScheduled(pat.id) >= freq) return;
 
       const primaryAvail   = isAvailable(primaryT, pat);
       const secondaryAvail = isAvailable(secondaryT, pat);
       const tertiaryAvail  = isAvailable(tertiaryT, pat);
-
-      const prefDisc = primaryT?.discipline || secondaryT?.discipline || 'PT';
+      const prefDisc       = primaryT?.discipline || secondaryT?.discipline || 'PT';
 
       // ── Handle Primary sessions ──
       if (dist.p > 0) {
