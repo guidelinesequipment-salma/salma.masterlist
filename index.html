@@ -7,6 +7,7 @@
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f2044">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Rehab">
@@ -3530,7 +3531,19 @@
   // ── Auto-Schedule ──
   // Tracks which slots were manually added by the user (not by auto-schedule)
   // Key: `${therapistId}|${day}|${patientId}`
-  const manualSlots = new Set();
+  const _MS_KEY = 'rehab_manual_slots';
+  const manualSlots = new Set(JSON.parse(localStorage.getItem(_MS_KEY) || '[]'));
+
+  const _saveManualSlots = () =>
+    localStorage.setItem(_MS_KEY, JSON.stringify([...manualSlots]));
+
+  // Patch add/delete to auto-persist
+  const _msAdd    = manualSlots.add.bind(manualSlots);
+  const _msDelete = manualSlots.delete.bind(manualSlots);
+  const _msClear  = manualSlots.clear.bind(manualSlots);
+  manualSlots.add    = (k)  => { _msAdd(k);    _saveManualSlots(); return manualSlots; };
+  manualSlots.delete = (k)  => { const r = _msDelete(k); _saveManualSlots(); return r; };
+  manualSlots.clear  = ()   => { _msClear();   _saveManualSlots(); };
 
   // Snapshot for undo (stored as deep-cloned schedule + manual slots set)
   let scheduleUndoSnapshot = null;
@@ -3895,6 +3908,12 @@
       return candidates[0];
     };
 
+    const FLOATER_THRESHOLD = 10; // daily weighted slots above which we redistribute
+    const FLOATER_CAP       = 10; // max daily weighted slots a floater can hold
+
+    // Is this therapist a floater (PT with no assigned patients)?
+    const isFloater = (tid) => floaterPTs.some(f => f.id === tid);
+
     // Count total sessions scheduled for a patient across ALL therapists this week
     const totalScheduled = (patId) => {
       let count = 0;
@@ -3908,22 +3927,17 @@
 
     // Place `need` sessions of a patient under a therapist, return how many were placed
     // Never exceeds patient's total weekly frequency across all therapists combined
-    // Floaters are capped at FLOATER_CAP (10) slots/day; others at SLOT_CAP (14)
-    const isFloater = (tid) => floaterPTs.some(f => f.id === tid);
+    // Floaters capped at FLOATER_CAP (10) slots/day; others at SLOT_CAP (14)
     const placeSessions = (tid, pat, role, need) => {
       ensureTherapistSlot(tid);
-      const freq    = parseInt(pat.freq) || 0;
-      const dayCap  = isFloater(tid) ? FLOATER_CAP : SLOT_CAP;
+      const freq   = parseInt(pat.freq) || 0;
+      const dayCap = isFloater(tid) ? FLOATER_CAP : SLOT_CAP;
       let placed = 0;
       while (placed < need) {
         if (totalScheduled(pat.id) >= freq) break;
         const day = pickBestDay(tid, pat.id, need);
         if (!day) break;
-        // Check daily slot cap for this therapist
-        if (getTherapistDaySlots(tid, day) + getSlotWeight(pat) > dayCap) {
-          // Try next available day (pickBestDay already chose lightest — if cap hit, stop)
-          break;
-        }
+        if (getTherapistDaySlots(tid, day) + getSlotWeight(pat) > dayCap) break;
         schedule[tid][day].push({ patientId: pat.id, role });
         patientDays[pat.id].add(day);
         placed++;
@@ -4051,8 +4065,6 @@
     //   - Slot cap (14/day) applies to the floater
     //   - Patient's total weekly freq must not be exceeded
     // ══════════════════════════════════════════
-    const FLOATER_THRESHOLD = 10; // daily weighted slots above which we redistribute
-    const FLOATER_CAP       = 10; // max daily weighted slots a floater can hold
 
     if (floaterPTs.length) {
       // Helper: find best floater for a patient on a specific day
