@@ -3855,9 +3855,8 @@
       )
     );
 
-    // Find best floater PT for a patient
-    // Male patients CAN go to any floater (gender rule relaxed for floaters)
-    // Female patients still → female floater only
+    // Find best floater PT for a patient (used in absence fallback)
+    // Floater daily cap is 10 slots (not 14)
     const findFloaterPT = (pat) => {
       const candidates = floaterPTs.filter(f => {
         if (!isAvailable(f, pat)) return false;
@@ -3909,15 +3908,22 @@
 
     // Place `need` sessions of a patient under a therapist, return how many were placed
     // Never exceeds patient's total weekly frequency across all therapists combined
+    // Floaters are capped at FLOATER_CAP (10) slots/day; others at SLOT_CAP (14)
+    const isFloater = (tid) => floaterPTs.some(f => f.id === tid);
     const placeSessions = (tid, pat, role, need) => {
       ensureTherapistSlot(tid);
-      const freq = parseInt(pat.freq) || 0;
+      const freq    = parseInt(pat.freq) || 0;
+      const dayCap  = isFloater(tid) ? FLOATER_CAP : SLOT_CAP;
       let placed = 0;
       while (placed < need) {
-        // Enforce total session cap across all therapists
         if (totalScheduled(pat.id) >= freq) break;
         const day = pickBestDay(tid, pat.id, need);
         if (!day) break;
+        // Check daily slot cap for this therapist
+        if (getTherapistDaySlots(tid, day) + getSlotWeight(pat) > dayCap) {
+          // Try next available day (pickBestDay already chose lightest — if cap hit, stop)
+          break;
+        }
         schedule[tid][day].push({ patientId: pat.id, role });
         patientDays[pat.id].add(day);
         placed++;
@@ -3929,15 +3935,21 @@
     workload.forEach(pat => {
       patientDays[pat.id] = patientDays[pat.id] || new Set();
       const freq = parseInt(pat.freq);
-      const dist = calcSessions(freq, !!pat.primary, !!pat.secondary, !!pat.tertiary);
+
+      // Verify actual staff assignment (handles empty-string from Supabase)
+      const primaryT   = pat.primary   ? staff.find(s => s.name === pat.primary)   : null;
+      const secondaryT = pat.secondary ? staff.find(s => s.name === pat.secondary) : null;
+      const tertiaryT  = pat.tertiary  ? staff.find(s => s.name === pat.tertiary)  : null;
+
+      // Use actual staff existence for calcSessions, not raw string truthiness
+      const hasP = !!primaryT;
+      const hasS = !!secondaryT;
+      const hasT = !!tertiaryT;
+      const dist = calcSessions(freq, hasP, hasS, hasT);
 
       // Count sessions already placed by manual/closed-day slots for this patient
       const manualCount = (patientDays[pat.id] instanceof Set ? patientDays[pat.id].size : 0);
       if (manualCount >= freq) return; // fully covered — skip auto-scheduling
-
-      const primaryT   = pat.primary   ? staff.find(s => s.name === pat.primary)   : null;
-      const secondaryT = pat.secondary ? staff.find(s => s.name === pat.secondary) : null;
-      const tertiaryT  = pat.tertiary  ? staff.find(s => s.name === pat.tertiary)  : null;
 
       const primaryAvail   = isAvailable(primaryT, pat);
       const secondaryAvail = isAvailable(secondaryT, pat);
@@ -4039,7 +4051,8 @@
     //   - Slot cap (14/day) applies to the floater
     //   - Patient's total weekly freq must not be exceeded
     // ══════════════════════════════════════════
-    const FLOATER_THRESHOLD = 10; // daily slots above which we redistribute
+    const FLOATER_THRESHOLD = 10; // daily weighted slots above which we redistribute
+    const FLOATER_CAP       = 10; // max daily weighted slots a floater can hold
 
     if (floaterPTs.length) {
       // Helper: find best floater for a patient on a specific day
@@ -4055,9 +4068,9 @@
           if (pat.gender === 'female' && f.gender === 'male') return false;
           // Floater must not already have this patient today
           if ((schedule[f.id]?.[day] || []).some(e => e.patientId === pat.id)) return false;
-          // Floater's daily slot cap
+          // Floater's daily slot cap is 10 (not 14)
           ensureTherapistSlot(f.id);
-          if (getTherapistDaySlots(f.id, day) + getSlotWeight(pat) > SLOT_CAP) return false;
+          if (getTherapistDaySlots(f.id, day) + getSlotWeight(pat) > FLOATER_CAP) return false;
           return true;
         });
         if (!candidates.length) return null;
