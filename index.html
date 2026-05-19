@@ -3925,18 +3925,29 @@
       return count;
     };
 
-    // Place `need` sessions of a patient under a therapist, return how many were placed
-    // Never exceeds patient's total weekly frequency across all therapists combined
-    // Floaters capped at FLOATER_CAP (10) slots/day; others at SLOT_CAP (14)
+    // Place `need` sessions of a patient under a therapist, return how many were placed.
+    // Strictly enforces: totalScheduled(patient) never exceeds patient.freq across ALL therapists.
+    // Floaters capped at FLOATER_CAP (10) slots/day; others at SLOT_CAP (14).
     const placeSessions = (tid, pat, role, need) => {
       ensureTherapistSlot(tid);
       const freq   = parseInt(pat.freq) || 0;
       const dayCap = isFloater(tid) ? FLOATER_CAP : SLOT_CAP;
+      // Cap need to what's actually remaining for this patient across ALL therapists
+      const remaining = Math.max(0, freq - totalScheduled(pat.id));
+      const toPlace   = Math.min(need, remaining);
+      if (toPlace <= 0) return 0;
+
       let placed = 0;
-      while (placed < need) {
+      let attempts = 0;
+      const maxAttempts = DAYS.length * 2; // prevent infinite loop
+
+      while (placed < toPlace && attempts < maxAttempts) {
+        attempts++;
+        // Re-check freq cap each iteration (other therapists may have placed sessions)
         if (totalScheduled(pat.id) >= freq) break;
-        const day = pickBestDay(tid, pat.id, need);
+        const day = pickBestDay(tid, pat.id, toPlace);
         if (!day) break;
+        // If this day's slot cap is full, skip (pickBestDay may return same day repeatedly)
         if (getTherapistDaySlots(tid, day) + getSlotWeight(pat) > dayCap) break;
         schedule[tid][day].push({ patientId: pat.id, role });
         patientDays[pat.id].add(day);
@@ -3962,7 +3973,7 @@
       const dist = calcSessions(freq, hasP, hasS, hasT);
 
       // Count sessions already placed by manual/closed-day slots for this patient
-      const manualCount = (patientDays[pat.id] instanceof Set ? patientDays[pat.id].size : 0);
+      const manualCount = totalScheduled(pat.id); // use totalScheduled for accuracy
       if (manualCount >= freq) return; // fully covered — skip auto-scheduling
 
       const primaryAvail   = isAvailable(primaryT, pat);
