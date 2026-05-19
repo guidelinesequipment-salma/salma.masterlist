@@ -3837,8 +3837,6 @@
     };
 
     // Is a therapist available for scheduling a patient?
-    // Slot cap is now per-day (checked during placement), not a weekly hard block here.
-    // Only blocks if fully on leave or has no available working days.
     const isAvailable = (t, pat) => {
       if (!t) return false;
       if (absentIds.has(t.id)) return false;
@@ -3848,11 +3846,35 @@
       return true;
     };
 
+    // Floaters: PT therapists with no assigned patients
+    const floaterPTs = staff.filter(s =>
+      s.discipline === 'PT' &&
+      !absentIds.has(s.id) &&
+      !patients.some(p =>
+        !p.archived && (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name)
+      )
+    );
+
+    // Find best floater PT for a patient
+    // Male patients CAN go to any floater (gender rule relaxed for floaters)
+    // Female patients still → female floater only
+    const findFloaterPT = (pat) => {
+      const candidates = floaterPTs.filter(f => {
+        if (!isAvailable(f, pat)) return false;
+        if (pat.gender === 'female' && f.gender === 'male') return false;
+        return true;
+      });
+      if (!candidates.length) return null;
+      candidates.sort((a, b) => getTherapistUsedSlots(a.id) - getTherapistUsedSlots(b.id));
+      return candidates[0];
+    };
+
     // Find the best substitute therapist for unplaced sessions:
-    //   - Not absent, not SLP, has remaining slot capacity
-    //   - Female patients must not be redistributed to male therapists
-    //   - Prefer same discipline as the original therapist
-    //   - Sort by fewest used slots (least loaded first)
+    //   - Not absent, not SLP
+    //   - Female patients → female only
+    //   - Male patients → any (floaters can cover male patients)
+    //   - Prefer same discipline, then fewest slots
+    //   - Floater PTs are preferred as last resort over random substitutes
     const findSubstitute = (pat, preferDiscipline) => {
       const isFemalePatient = pat.gender === 'female';
       const candidates = staff.filter(sub => {
@@ -3860,11 +3882,11 @@
         if (sub.discipline === 'SLP') return false;
         if (!isAvailable(sub, pat)) return false;
         if (sub.name === pat.primary || sub.name === pat.secondary || sub.name === pat.tertiary) return false;
+        // Female patients → female therapist only; male patients → any
         if (isFemalePatient && sub.gender === 'male') return false;
         return true;
       });
       if (!candidates.length) return null;
-      // Prefer same discipline, then sort by slot load ascending
       candidates.sort((a, b) => {
         const aPref = a.discipline === preferDiscipline ? 0 : 1;
         const bPref = b.discipline === preferDiscipline ? 0 : 1;
@@ -3927,19 +3949,22 @@
       if (dist.p > 0) {
         let unplaced = dist.p;
         if (primaryAvail) {
-          // Primary present → assign their sessions
           unplaced -= placeSessions(primaryT.id, pat, 'primary', dist.p);
         } else if (secondaryAvail) {
-          // Rule: primary absent → use secondary for primary's sessions
+          // Primary absent → secondary covers
           unplaced -= placeSessions(secondaryT.id, pat, 'secondary', dist.p);
         } else if (tertiaryAvail) {
-          // Secondary also absent → use tertiary
+          // Primary + secondary absent → tertiary covers
           unplaced -= placeSessions(tertiaryT.id, pat, 'tertiary', dist.p);
         }
-        // Still unplaced (all absent or overloaded) → redistribute to any available non-SLP
         if (unplaced > 0) {
-          const sub = findSubstitute(pat, prefDisc);
-          if (sub) placeSessions(sub.id, pat, 'primary', unplaced);
+          // Try floater PT first, then any non-SLP substitute
+          const floater = findFloaterPT(pat);
+          if (floater) unplaced -= placeSessions(floater.id, pat, 'primary', unplaced);
+          if (unplaced > 0) {
+            const sub = findSubstitute(pat, prefDisc);
+            if (sub) placeSessions(sub.id, pat, 'primary', unplaced);
+          }
         }
       }
 
@@ -3947,18 +3972,21 @@
       if (dist.s > 0) {
         let unplaced = dist.s;
         if (secondaryAvail) {
-          // Secondary present → assign their sessions
           unplaced -= placeSessions(secondaryT.id, pat, 'secondary', dist.s);
         } else if (primaryAvail) {
-          // Rule: secondary absent → fall back to primary for secondary's sessions
+          // Secondary absent → primary covers
           unplaced -= placeSessions(primaryT.id, pat, 'primary', dist.s);
         } else if (tertiaryAvail) {
+          // Secondary + primary absent → tertiary covers
           unplaced -= placeSessions(tertiaryT.id, pat, 'tertiary', dist.s);
         }
-        // Still unplaced → redistribute to any available non-SLP
         if (unplaced > 0) {
-          const sub = findSubstitute(pat, prefDisc);
-          if (sub) placeSessions(sub.id, pat, 'secondary', unplaced);
+          const floater = findFloaterPT(pat);
+          if (floater) unplaced -= placeSessions(floater.id, pat, 'secondary', unplaced);
+          if (unplaced > 0) {
+            const sub = findSubstitute(pat, prefDisc);
+            if (sub) placeSessions(sub.id, pat, 'secondary', unplaced);
+          }
         }
       }
 
@@ -3968,13 +3996,19 @@
         if (tertiaryAvail) {
           unplaced -= placeSessions(tertiaryT.id, pat, 'tertiary', dist.t);
         } else if (primaryAvail) {
+          // Tertiary absent → primary covers
           unplaced -= placeSessions(primaryT.id, pat, 'primary', dist.t);
         } else if (secondaryAvail) {
+          // Tertiary + primary absent → secondary covers
           unplaced -= placeSessions(secondaryT.id, pat, 'secondary', dist.t);
         }
         if (unplaced > 0) {
-          const sub = findSubstitute(pat, prefDisc);
-          if (sub) placeSessions(sub.id, pat, 'tertiary', unplaced);
+          const floater = findFloaterPT(pat);
+          if (floater) unplaced -= placeSessions(floater.id, pat, 'tertiary', unplaced);
+          if (unplaced > 0) {
+            const sub = findSubstitute(pat, prefDisc);
+            if (sub) placeSessions(sub.id, pat, 'tertiary', unplaced);
+          }
         }
       }
 
@@ -4007,22 +4041,17 @@
     // ══════════════════════════════════════════
     const FLOATER_THRESHOLD = 10; // daily slots above which we redistribute
 
-    const floaters = staff.filter(s =>
-      s.discipline === 'PT' &&
-      !absentIds.has(s.id) &&
-      !patients.some(p =>
-        !p.archived &&
-        (p.primary === s.name || p.secondary === s.name || p.tertiary === s.name)
-      )
-    );
-
-    if (floaters.length) {
+    if (floaterPTs.length) {
       // Helper: find best floater for a patient on a specific day
+      // Male patients CAN go to any floater PT (gender rule relaxed)
+      // Female patients → female floater only
+      // Low-cost patients CAN be assigned to floater if therapist >10 slots
       const findFloater = (pat, day) => {
-        const candidates = floaters.filter(f => {
+        const candidates = floaterPTs.filter(f => {
           const fWorkDays = f.workDays || DAYS;
           if (!fWorkDays.includes(day)) return false;
           if (isTherapistAbsentOnDay(f.id, day)) return false;
+          // Female patient → female floater only; male → any floater
           if (pat.gender === 'female' && f.gender === 'male') return false;
           // Floater must not already have this patient today
           if ((schedule[f.id]?.[day] || []).some(e => e.patientId === pat.id)) return false;
@@ -4032,7 +4061,6 @@
           return true;
         });
         if (!candidates.length) return null;
-        // Pick floater with fewest slots today (most room)
         return candidates.sort((a, b) =>
           getTherapistDaySlots(a.id, day) - getTherapistDaySlots(b.id, day)
         )[0];
@@ -4044,12 +4072,11 @@
           if (isTherapistAbsentOnDay(overloaded.id, day)) return;
           if (getTherapistDaySlots(overloaded.id, day) <= FLOATER_THRESHOLD) return;
 
-          // Get secondary-role patients on this day for the overloaded therapist
-          const secondaryEntries = (schedule[overloaded.id]?.[day] || [])
-            .filter(e => e.role === 'secondary');
+          // MOVE: relocate secondary AND low-cost role slots from overloaded → floater
+          const movableSlots = (schedule[overloaded.id]?.[day] || [])
+            .filter(e => e.role === 'secondary' || e.role === 'lowcost');
 
-          secondaryEntries.forEach(entry => {
-            // Re-check: may have already dropped below threshold
+          movableSlots.forEach(entry => {
             if (getTherapistDaySlots(overloaded.id, day) <= FLOATER_THRESHOLD) return;
 
             const pat = patients.find(p => p.id === entry.patientId && !p.archived);
@@ -4058,25 +4085,31 @@
             const floater = findFloater(pat, day);
             if (!floater) return;
 
-            // MOVE: remove from overloaded, add to floater
-            // Total weekly count stays the same — we're just relocating
+            // Relocate slot — no change to total weekly count
             schedule[overloaded.id][day] = schedule[overloaded.id][day]
               .filter(e => e.patientId !== pat.id);
             ensureTherapistSlot(floater.id);
-            schedule[floater.id][day].push({ patientId: pat.id, role: 'secondary' });
+            schedule[floater.id][day].push({ patientId: pat.id, role: entry.role });
           });
         });
 
-        // ADD: floater picks up unscheduled secondary sessions for patients
+        // ADD: floater picks up unscheduled secondary/lowcost sessions for patients
         // whose secondary therapist is overloaded, within their weekly freq
-        patients.filter(p => !p.archived && p.secondary && parseInt(p.freq) > 0).forEach(pat => {
+        // Includes low-cost (ABM/Low-cost insurance) patients and male patients
+        patients.filter(p =>
+          !p.archived &&
+          (p.secondary || (p.insurance === 'Low-cost' || p.insurance === 'ABM')) &&
+          parseInt(p.freq) > 0
+        ).forEach(pat => {
           const freq = parseInt(pat.freq);
-          // Only act if patient still has sessions left to schedule
           if (totalScheduled(pat.id) >= freq) return;
-          // Only if their secondary therapist is overloaded on this day
-          const secT = staff.find(s => s.name === pat.secondary);
-          if (!secT) return;
-          if (getTherapistDaySlots(secT.id, day) <= FLOATER_THRESHOLD) return;
+
+          // Check if their assigned secondary (or primary for low-cost) is overloaded today
+          const refTherapistName = pat.secondary || pat.primary;
+          const refT = staff.find(s => s.name === refTherapistName);
+          if (!refT) return;
+          if (getTherapistDaySlots(refT.id, day) <= FLOATER_THRESHOLD) return;
+
           // Patient must not already be scheduled on this day by anyone
           const alreadyThisDay = Object.values(schedule).some(days =>
             (days[day] || []).some(e => e.patientId === pat.id)
@@ -4086,9 +4119,9 @@
           const floater = findFloater(pat, day);
           if (!floater) return;
 
+          const role = (pat.insurance === 'Low-cost' || pat.insurance === 'ABM') ? 'lowcost' : 'secondary';
           ensureTherapistSlot(floater.id);
-          schedule[floater.id][day].push({ patientId: pat.id, role: 'secondary' });
-          // Track in patientDays so further passes don't double-count
+          schedule[floater.id][day].push({ patientId: pat.id, role });
           if (!patientDays[pat.id]) patientDays[pat.id] = new Set();
           patientDays[pat.id].add(day);
         });
