@@ -4728,6 +4728,11 @@
     const monthFilter = parseInt(document.getElementById('ra-month-filter').value) || 0;
     const yearFilter  = parseInt(document.getElementById('ra-year-filter').value)  || 0;
 
+    // Discipline key constants — used throughout this render
+    const discKey = raDisc.toLowerCase();     // 'pt', 'ot', 'slp'
+    const raField = `last_eval_date_${discKey}`;  // e.g. 'last_eval_date_pt'
+    const ptField = `eval_date_${discKey}`;       // e.g. 'eval_date_pt' on patient record
+
     // Filter active patients assigned to a therapist of the selected discipline
     const discStaff   = staff.filter(s => s.discipline === raDisc).map(s => s.name);
     let raPats = patients.filter(p =>
@@ -4751,11 +4756,7 @@
     // Annotate with due info
     const annotated = raPats.map(p => {
       const ra          = reassessments[p.id] || {};
-      // Use discipline-specific last eval date from reassessments record,
-      // falling back to the corresponding patient eval_date field for that discipline
-      const discKey     = raDisc.toLowerCase().replace(' ', '_'); // 'pt', 'ot', 'slp'
-      const raField     = `last_eval_date_${discKey}`;
-      const ptField     = `eval_date_${discKey}`;
+      // Use discipline-specific last eval date, falling back to patient's eval_date field
       const lastEval    = ra[raField] || p[ptField] || ra.last_eval_date || '';
       const completed   = ra[`completed_date_${discKey}`] || ra.completed_date || '';
       const sig         = ra.signature      || '';
