@@ -4382,16 +4382,26 @@
     const patient   = patients.find(p => p.id === pid);
     if (!therapist || !patient) return;
 
-    const isOtSlp = therapist.discipline === 'OT' || therapist.discipline === 'SLP';
-    const otherTherapistsToday = getTherapistsOnDay(pid, pickerDay);
-    const seenByPTToday = otherTherapistsToday.some(t => t.discipline === 'PT' && t.id !== therapist.id);
-    const isJoint = isOtSlp && seenByPTToday;
+    // Hard block: patient already with THIS therapist today
+    const alreadyWithThisTherapist = (schedule[pickerTid]?.[pickerDay] || [])
+      .some(e => e.patientId === pid);
+    if (alreadyWithThisTherapist) return;
 
-    // Block if patient is already busy today and it's NOT an allowed joint session
-    if (getPatientDaySet(pickerDay).has(pid) && !isJoint) return;
-    const allowed = getAllowedSessions(therapist, patient);
-    const used    = getTherapistPatientCount(pickerTid, pid);
-    if (used >= allowed) return;
+    // Hard block: total weekly sessions already at or above freq
+    const freq = parseInt(patient.freq) || 0;
+    if (getTotalPatientSessions(pid) >= freq) {
+      showToast(`⚠ ${patient.name} has already reached their weekly session limit (${freq}x).`);
+      return;
+    }
+
+    // OT/SLP/OT Floater/SLP Floater joint session handling
+    const isOtSlpDisc = therapist.discipline === 'OT' || therapist.discipline === 'SLP' ||
+                        therapist.discipline === 'OT Floater' || therapist.discipline === 'SLP Floater';
+    const otherTherapistsToday = getTherapistsOnDay(pid, pickerDay);
+    const seenByPTToday = otherTherapistsToday.some(t =>
+      (t.discipline === 'PT' || t.discipline === 'PT Floater') && t.id !== therapist.id
+    );
+    const isJoint = isOtSlpDisc && seenByPTToday;
 
     schedule[pickerTid][pickerDay].push({ patientId: pid, role });
     manualSlots.add(`${pickerTid}|${pickerDay}|${pid}`);
@@ -4399,9 +4409,7 @@
       closePicker();
       renderSchedule();
       renderAllPatients();
-      // ── Joint session notification ──
       if (isJoint) {
-        const freq = parseInt(patient.freq) || 0;
         const newTotal = getPatientTotalScheduledWithJoint(pid);
         const disciplines = getTherapistsOnDay(pid, pickerDay).map(t => t.discipline).join(' + ');
         showToast(
