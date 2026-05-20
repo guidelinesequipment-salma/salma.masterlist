@@ -3162,26 +3162,9 @@
     }
 
     // Check if this therapist has ANY patients assigned (primary/secondary/tertiary)
-    const hasAssignedPatients = patients.some(p =>
-      p.primary === therapist.name ||
-      p.secondary === therapist.name ||
-      p.tertiary  === therapist.name
-    );
-
-    const isOtOrSlp = therapist.discipline === 'OT' || therapist.discipline === 'SLP';
-
-    // OT and SLP → can pick any active patient regardless of assignment
-    // Unassigned therapist → can pick any active patient
-    // Assigned PT → can only pick their own patients
-    const eligible = patients.filter(p =>
-      !p.archived && parseInt(p.freq) && (
-        isOtOrSlp
-          ? true  // OT/SLP: all active patients eligible
-          : hasAssignedPatients
-            ? (p.primary === therapist.name || p.secondary === therapist.name || p.tertiary === therapist.name)
-            : true  // unassigned: all active patients eligible
-      )
-    );
+    // Manual assignment rule: ALL therapists (including floaters) can be assigned any active patient.
+    // Primary/secondary/tertiary assignment is only enforced by auto-scheduling.
+    const eligible = patients.filter(p => !p.archived && parseInt(p.freq));
 
     const dayPatients = new Set((schedule[pickerTid]?.[pickerDay]||[]).map(e => e.patientId));
     const busyToday   = getPatientDaySet(pickerDay);
@@ -3198,15 +3181,14 @@
 
     list.innerHTML = filtered.map(p => {
       const freq      = parseInt(p.freq) || 0;
-      const assigned  = p.primary === therapist.name || p.secondary === therapist.name || p.tertiary === therapist.name;
-      const allowed   = assigned ? getAllowedSessions(therapist, p) : freq;
-      const used      = getTherapistPatientCount(pickerTid, p.id);
-      // Hard ceiling: total sessions across ALL therapists (including floaters) must not exceed freq
+      // Session counts are shared — block if total across ALL therapists has reached freq
       const totalAllTherapists = getTotalPatientSessions(p.id);
+      const used      = getTherapistPatientCount(pickerTid, p.id);
+      const allowed   = getAllowedSessions(therapist, p); // used for hint display only
       const alreadyHere    = dayPatients.has(p.id);
       const busyElsewhere  = !alreadyHere && busyToday.has(p.id);
-      // sessMaxed: either this therapist's role allowance is met OR total across all is at freq
-      const sessMaxed      = (assigned && used >= allowed) || (totalAllTherapists >= freq);
+      // Hard ceiling: patient's total weekly sessions across all therapists must not exceed freq
+      const sessMaxed      = totalAllTherapists >= freq;
       const hasAppt        = !!(appointments[pickerDay]?.has(p.id));
       // OT/SLP/OT Floater/SLP Floater joint session rule
       const isOtSlpTherapist = therapist.discipline === 'OT' || therapist.discipline === 'SLP' ||
@@ -3225,14 +3207,13 @@
       const currentTotal   = getPatientTotalScheduledWithJoint(p.id);
 
       let hint = '';
-      if (alreadyHere)                  hint = ' · already here';
-      else if (effectiveBusy)           hint = ' · busy today';
-      else if (totalAllTherapists >= freq) hint = ` · freq reached (${totalAllTherapists}/${freq} total)`;
-      else if (sessMaxed)               hint = ` · sessions maxed (${used}/${allowed})`;
-      else if (hasAppt)                 hint = ` · 🏥 appt day`;
-      else if (isJointAllowed)          hint = ` · ⚡ Joint session — will flag ${currentTotal+1}/${freq}`;
-      else if (wouldExceed)             hint = ` · ⚠ over cap (${daySlots}→${(daySlots+slotCost).toFixed(slotCost%1?1:0)}/${effectiveCap})`;
-      else                              hint = ` · ${used}/${allowed} sessions`;
+      if (alreadyHere)                     hint = ' · already here';
+      else if (effectiveBusy)              hint = ' · busy today';
+      else if (sessMaxed)                  hint = ` · freq reached (${totalAllTherapists}/${freq} total)`;
+      else if (hasAppt)                    hint = ` · 🏥 appt day`;
+      else if (isJointAllowed)             hint = ` · ⚡ Joint — ${currentTotal+1}/${freq} total`;
+      else if (wouldExceed)                hint = ` · ⚠ over cap`;
+      else                                 hint = ` · ${totalAllTherapists}/${freq} sessions used`;
 
       const catClass = getPatientCatClass(p);
       const catDot = catClass ? `<span class="cat-dot ${catClass}" title="${(p.category||p.insurance||'')}"></span>` : '';
