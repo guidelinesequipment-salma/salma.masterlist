@@ -1385,10 +1385,22 @@
           <label class="form-label">Sessions / Week</label>
           <input class="form-input" id="f-freq" type="number" min="1" max="21" placeholder="e.g. 5">
         </div>
-        <div class="form-group">
-          <label class="form-label">Evaluation Date</label>
-          <input class="form-input" id="f-eval-date" type="date">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Used as starting point for re-assessment due dates</div>
+        <div class="form-group span-3">
+          <label class="form-label">Evaluation Dates <span style="font-size:11px;font-weight:400;color:var(--text-muted);">— used as last eval reference in Re-assessment tab</span></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:4px;">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:#7a1c1c;margin-bottom:3px;">🦵 PT Eval Date</div>
+              <input class="form-input" id="f-eval-date-pt" type="date">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:#065f46;margin-bottom:3px;">🤲 OT Eval Date</div>
+              <input class="form-input" id="f-eval-date-ot" type="date">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:#1565a0;margin-bottom:3px;">🗣️ SLP Eval Date</div>
+              <input class="form-input" id="f-eval-date-slp" type="date">
+            </div>
+          </div>
         </div>
       </div>
       <div class="form-section-title">Therapist Assignment</div>
@@ -1592,7 +1604,9 @@
     primary_therapist: p.primary || null, secondary_therapist: p.secondary || null, tertiary_therapist: p.tertiary || null,
     insurance: p.insurance || null, category: p.category || null, details: p.details || null,
     archived: p.archived || false,
-    eval_date: p.eval_date || null,
+    eval_date_pt:  p.eval_date_pt  || null,
+    eval_date_ot:  p.eval_date_ot  || null,
+    eval_date_slp: p.eval_date_slp || null,
   });
   const rowToPatient = r => ({
     id: r.id, name: r.name, mrn: r.mrn || '', ward: r.ward, room: r.room,
@@ -1600,7 +1614,9 @@
     primary: r.primary_therapist || '', secondary: r.secondary_therapist || '', tertiary: r.tertiary_therapist || '',
     insurance: r.insurance || '', category: r.category || '', details: r.details || '',
     archived: r.archived || false,
-    eval_date: r.eval_date || '',
+    eval_date_pt:  r.eval_date_pt  || '',
+    eval_date_ot:  r.eval_date_ot  || '',
+    eval_date_slp: r.eval_date_slp || '',
   });
   const staffToRow = s => ({
     id: s.id, name: s.name, discipline: s.discipline,
@@ -2339,7 +2355,9 @@
       document.getElementById('f-room').value      = p.room      || '';
       document.getElementById('f-gender').value    = p.gender    || '';
       document.getElementById('f-freq').value      = p.freq      || '';
-      document.getElementById('f-eval-date').value = p.eval_date || '';
+      document.getElementById('f-eval-date-pt').value  = p.eval_date_pt  || '';
+      document.getElementById('f-eval-date-ot').value  = p.eval_date_ot  || '';
+      document.getElementById('f-eval-date-slp').value = p.eval_date_slp || '';
       document.getElementById('f-primary').value   = p.primary   || '';
       document.getElementById('f-secondary').value = p.secondary || '';
       document.getElementById('f-tertiary').value  = p.tertiary  || '';
@@ -2348,7 +2366,9 @@
       document.getElementById('f-details').value   = p.details   || '';
     } else {
       ['f-name','f-mrn','f-room','f-freq'].forEach(id => document.getElementById(id).value='');
-      document.getElementById('f-eval-date').value = '';
+      document.getElementById('f-eval-date-pt').value  = '';
+      document.getElementById('f-eval-date-ot').value  = '';
+      document.getElementById('f-eval-date-slp').value = '';
       ['f-ward','f-gender','f-primary','f-secondary','f-tertiary','f-insurance','f-category','f-details'].forEach(id => document.getElementById(id).value='');
     }
     onInsuranceChange();
@@ -2365,7 +2385,9 @@
       room:      document.getElementById('f-room').value.trim(),
       gender:    document.getElementById('f-gender').value,
       freq:      document.getElementById('f-freq').value,
-      eval_date: document.getElementById('f-eval-date').value || null,
+      eval_date_pt:  document.getElementById('f-eval-date-pt').value  || null,
+      eval_date_ot:  document.getElementById('f-eval-date-ot').value  || null,
+      eval_date_slp: document.getElementById('f-eval-date-slp').value || null,
       primary:   document.getElementById('f-primary').value,
       secondary: document.getElementById('f-secondary').value,
       tertiary:  document.getElementById('f-tertiary').value,
@@ -2377,23 +2399,32 @@
       const idx = patients.findIndex(p=>p.id===editingPatientId);
       patients[idx] = { ...patients[idx], ...data };
       await savePatientRow(patients[idx]);
-      // Sync eval_date → reassessments last_eval_date (only if no existing last_eval_date or patient set a new one)
-      if (data.eval_date) {
-        const ra = reassessments[editingPatientId] || {};
-        if (!ra.last_eval_date || ra.last_eval_date !== data.eval_date) {
-          await saveReassessment(editingPatientId, 'last_eval_date', data.eval_date);
-        }
-      }
+      // Sync discipline-specific eval dates → reassessments
+      await _syncEvalDatesToReassessment(editingPatientId, data);
     } else {
       const newP = { id:uid(), ...data };
       patients.push(newP);
       await savePatientRow(newP);
-      // Sync eval_date → reassessments last_eval_date for new patient
-      if (data.eval_date) {
-        await saveReassessment(newP.id, 'last_eval_date', data.eval_date);
-      }
+      await _syncEvalDatesToReassessment(newP.id, data);
     }
     closePatientModal(); renderPatients();
+  }
+
+  // Sync discipline-specific eval dates into the reassessments table
+  // Each discipline writes to its own field: last_eval_date_pt, last_eval_date_ot, last_eval_date_slp
+  async function _syncEvalDatesToReassessment(patientId, data) {
+    const updates = {};
+    if (data.eval_date_pt)  updates.last_eval_date_pt  = data.eval_date_pt;
+    if (data.eval_date_ot)  updates.last_eval_date_ot  = data.eval_date_ot;
+    if (data.eval_date_slp) updates.last_eval_date_slp = data.eval_date_slp;
+    if (Object.keys(updates).length === 0) return;
+    const existing = reassessments[patientId] || {};
+    reassessments[patientId] = { ...existing, patient_id: patientId, ...updates };
+    await fetch(`${SUPA_URL}/rest/v1/reassessments`, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(reassessments[patientId]),
+    });
   }
   async function archivePatient(id) {
     const idx = patients.findIndex(p => p.id === id);
@@ -3200,6 +3231,7 @@
       const isJointAllowed = isOtSlpTherapist && seenByPTToday && !alreadyHere;
       const effectiveBusy  = busyElsewhere && !isJointAllowed;
       const disabled       = alreadyHere || effectiveBusy || sessMaxed;
+      const assigned       = p.primary === therapist.name || p.secondary === therapist.name || p.tertiary === therapist.name;
       const role           = assigned ? getPatientRole(therapist, p) : 'primary';
       const slotCost       = getSlotWeight(p);
       const effectiveCap   = isFloaterDisc(therapist.discipline) ? 10 : SLOT_CAP;
@@ -4719,9 +4751,13 @@
     // Annotate with due info
     const annotated = raPats.map(p => {
       const ra          = reassessments[p.id] || {};
-      // Use reassessment last_eval_date; fall back to patient's eval_date if none set yet
-      const lastEval    = ra.last_eval_date || p.eval_date || '';
-      const completed   = ra.completed_date || '';
+      // Use discipline-specific last eval date from reassessments record,
+      // falling back to the corresponding patient eval_date field for that discipline
+      const discKey     = raDisc.toLowerCase().replace(' ', '_'); // 'pt', 'ot', 'slp'
+      const raField     = `last_eval_date_${discKey}`;
+      const ptField     = `eval_date_${discKey}`;
+      const lastEval    = ra[raField] || p[ptField] || ra.last_eval_date || '';
+      const completed   = ra[`completed_date_${discKey}`] || ra.completed_date || '';
       const sig         = ra.signature      || '';
       const comments    = ra.comments       || '';
       const dueDate     = calcDueDate(lastEval, p.category, p.insurance);
@@ -4778,9 +4814,9 @@
             <td class="ra-cell-mrn">${esc(p.mrn||'—')}</td>
             <td>${esc(p.ward||'')} ${esc(p.room||'')}</td>
             <td title="${esc(getDiscPrimary(p))}">${esc(getDiscPrimary(p))}</td>
-            <td><input type="date" class="ra-input" value="${lastEval}" data-field="last_eval_date" data-pid="${p.id}" onchange="onRaDateChange(this)" title="Last Evaluation Date"></td>
+            <td><input type="date" class="ra-input" value="${lastEval}" data-field="${raField}" data-pid="${p.id}" data-disc="${raDisc.toLowerCase()}" onchange="onRaDateChange(this)" title="Last Evaluation Date"></td>
             <td>${badgeHtml}</td>
-            <td><input type="date" class="ra-input" value="${completed}" data-field="completed_date" data-pid="${p.id}" onchange="onRaDateChange(this)" title="Date Completed"></td>
+            <td><input type="date" class="ra-input" value="${completed}" data-field="completed_date" data-pid="${p.id}" data-disc="${raDisc.toLowerCase()}" onchange="onRaDateChange(this)" title="Date Completed"></td>
             <td><textarea class="ra-input ra-textarea" data-field="comments" data-pid="${p.id}" onblur="onRaTextChange(this)" placeholder="Comments…">${esc(comments)}</textarea></td>
           </tr>`;
       }).join('');
@@ -4792,21 +4828,26 @@
   }
 
   async function onRaDateChange(input) {
-    const { pid, field } = input.dataset;
-    await saveReassessment(pid, field, input.value);
+    const { pid, field, disc } = input.dataset;
+    const discKey = (disc || raDisc).toLowerCase();
 
-    // When date completed is entered → automatically update last_eval_date to match
-    // and sync back to the patient's eval_date field
+    // Map generic field names to discipline-specific ones
+    let actualField = field;
+    if (field === 'completed_date') actualField = `completed_date_${discKey}`;
+
+    await saveReassessment(pid, actualField, input.value);
+
+    // When date completed is entered → auto-update discipline-specific last_eval_date
     if (field === 'completed_date' && input.value) {
-      await saveReassessment(pid, 'last_eval_date', input.value);
-      // Also update the patient record's eval_date
+      const raField  = `last_eval_date_${discKey}`;
+      const patField = `eval_date_${discKey}`;
+      await saveReassessment(pid, raField, input.value);
       const idx = patients.findIndex(p => p.id === pid);
       if (idx !== -1) {
-        patients[idx].eval_date = input.value;
+        patients[idx][patField] = input.value;
         await savePatientRow(patients[idx]);
       }
     }
-    // Re-render to update due date badge, row colour, and last eval field
     renderReassessment();
   }
 
