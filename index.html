@@ -3053,24 +3053,8 @@
             </div>`;
         }).join('');
 
-        // Always show Add button for unassigned therapists and OT/SLP; for assigned PT check their patient list
-        const hasAssigned = patients.some(p =>
-          !p.archived && parseInt(p.freq) &&
-          (p.primary===s.name || p.secondary===s.name || p.tertiary===s.name)
-        );
-        const isOtOrSlp = s.discipline === 'OT' || s.discipline === 'SLP';
-        const canAdd = !isAbsent && (
-          isOtOrSlp // OT and SLP can always add any patient
-          || !hasAssigned // unassigned therapist: always show
-          || patients.some(p => {
-            if (!parseInt(p.freq) || p.archived) return false;
-            const assigned = p.primary===s.name || p.secondary===s.name || p.tertiary===s.name;
-            if (!assigned) return false;
-            const allowed = getAllowedSessions(s, p);
-            const used    = getTherapistPatientCount(s.id, p.id);
-            return used < allowed;
-          })
-        );
+        // Manual assignment rule: any non-absent therapist can add any patient
+        const canAdd = !isAbsent;
 
         return `
           <td class="sched-day-cell${isDayClosed(s.id, day) ? ' closed-day' : ''}">
