@@ -4725,11 +4725,12 @@
     const raField = `last_eval_date_${discKey}`;  // e.g. 'last_eval_date_pt'
     const ptField = `eval_date_${discKey}`;       // e.g. 'eval_date_pt' on patient record
 
-    // Filter active patients assigned to a therapist of the selected discipline
+    // Filter active patients who have been evaluated under the selected discipline
+    // (have an eval date for PT/OT/SLP, regardless of therapist assignment)
     const discStaff   = staff.filter(s => s.discipline === raDisc).map(s => s.name);
     let raPats = patients.filter(p =>
       !p.archived &&
-      (discStaff.includes(p.primary) || discStaff.includes(p.secondary) || discStaff.includes(p.tertiary))
+      (p[ptField] || (reassessments[p.id] || {})[raField])
     ).sort((a, b) => {
       const wa = { 'Ward A':0, 'Ward B':1, 'ICU 1':2, 'ICU 2':3 }[a.ward] ?? 99;
       const wb = { 'Ward A':0, 'Ward B':1, 'ICU 1':2, 'ICU 2':3 }[b.ward] ?? 99;
