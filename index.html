@@ -1390,15 +1390,15 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:4px;">
             <div>
               <div style="font-size:11px;font-weight:600;color:#7a1c1c;margin-bottom:3px;">🦵 PT Eval Date</div>
-              <input class="form-input" id="f-eval-date-pt" type="date">
+              <input class="form-input" id="f-eval-date-pt" type="text" placeholder="DD/MM/YYYY" maxlength="10">
             </div>
             <div>
               <div style="font-size:11px;font-weight:600;color:#065f46;margin-bottom:3px;">🤲 OT Eval Date</div>
-              <input class="form-input" id="f-eval-date-ot" type="date">
+              <input class="form-input" id="f-eval-date-ot" type="text" placeholder="DD/MM/YYYY" maxlength="10">
             </div>
             <div>
               <div style="font-size:11px;font-weight:600;color:#1565a0;margin-bottom:3px;">🗣️ SLP Eval Date</div>
-              <input class="form-input" id="f-eval-date-slp" type="date">
+              <input class="form-input" id="f-eval-date-slp" type="text" placeholder="DD/MM/YYYY" maxlength="10">
             </div>
           </div>
         </div>
@@ -2355,9 +2355,9 @@
       document.getElementById('f-room').value      = p.room      || '';
       document.getElementById('f-gender').value    = p.gender    || '';
       document.getElementById('f-freq').value      = p.freq      || '';
-      document.getElementById('f-eval-date-pt').value  = p.eval_date_pt  || '';
-      document.getElementById('f-eval-date-ot').value  = p.eval_date_ot  || '';
-      document.getElementById('f-eval-date-slp').value = p.eval_date_slp || '';
+      document.getElementById('f-eval-date-pt').value  = isoToDmy(p.eval_date_pt  || '');
+      document.getElementById('f-eval-date-ot').value  = isoToDmy(p.eval_date_ot  || '');
+      document.getElementById('f-eval-date-slp').value = isoToDmy(p.eval_date_slp || '');
       document.getElementById('f-primary').value   = p.primary   || '';
       document.getElementById('f-secondary').value = p.secondary || '';
       document.getElementById('f-tertiary').value  = p.tertiary  || '';
@@ -2385,9 +2385,9 @@
       room:      document.getElementById('f-room').value.trim(),
       gender:    document.getElementById('f-gender').value,
       freq:      document.getElementById('f-freq').value,
-      eval_date_pt:  document.getElementById('f-eval-date-pt').value  || null,
-      eval_date_ot:  document.getElementById('f-eval-date-ot').value  || null,
-      eval_date_slp: document.getElementById('f-eval-date-slp').value || null,
+      eval_date_pt:  dmyToIso(document.getElementById('f-eval-date-pt').value)  || null,
+      eval_date_ot:  dmyToIso(document.getElementById('f-eval-date-ot').value)  || null,
+      eval_date_slp: dmyToIso(document.getElementById('f-eval-date-slp').value) || null,
       primary:   document.getElementById('f-primary').value,
       secondary: document.getElementById('f-secondary').value,
       tertiary:  document.getElementById('f-tertiary').value,
@@ -4705,6 +4705,22 @@
     return dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
   }
 
+  // Convert YYYY-MM-DD (stored format) → DD/MM/YYYY (display format)
+  function isoToDmy(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    if (!y || !m || !d) return iso;
+    return `${d}/${m}/${y}`;
+  }
+
+  // Convert DD/MM/YYYY (user input) → YYYY-MM-DD (stored format)
+  function dmyToIso(dmy) {
+    if (!dmy) return '';
+    const [d, m, y] = dmy.split('/');
+    if (!d || !m || !y) return '';
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
+
   async function saveReassessment(patientId, field, value) {
     const existing = reassessments[patientId] || {};
     reassessments[patientId] = { ...existing, patient_id: patientId, [field]: value };
@@ -4808,9 +4824,9 @@
             <td class="ra-cell-mrn">${esc(p.mrn||'—')}</td>
             <td>${esc(p.ward||'')} ${esc(p.room||'')}</td>
             <td title="${esc(getDiscPrimary(p))}">${esc(getDiscPrimary(p))}</td>
-            <td><input type="date" class="ra-input" value="${lastEval}" data-field="${raField}" data-pid="${p.id}" data-disc="${raDisc.toLowerCase()}" onchange="onRaDateChange(this)" title="Last Evaluation Date"></td>
+            <td><input type="text" class="ra-input" value="${isoToDmy(lastEval)}" data-field="${raField}" data-pid="${p.id}" data-disc="${raDisc.toLowerCase()}" onchange="onRaDateChange(this)" placeholder="DD/MM/YYYY" maxlength="10" title="Last Evaluation Date"></td>
             <td>${badgeHtml}</td>
-            <td><input type="date" class="ra-input" value="${completed}" data-field="completed_date" data-pid="${p.id}" data-disc="${raDisc.toLowerCase()}" onchange="onRaDateChange(this)" title="Date Completed"></td>
+            <td><input type="text" class="ra-input" value="${isoToDmy(completed)}" data-field="completed_date" data-pid="${p.id}" data-disc="${raDisc.toLowerCase()}" onchange="onRaDateChange(this)" placeholder="DD/MM/YYYY" maxlength="10" title="Date Completed"></td>
             <td><textarea class="ra-input ra-textarea" data-field="comments" data-pid="${p.id}" onblur="onRaTextChange(this)" placeholder="Comments…">${esc(comments)}</textarea></td>
           </tr>`;
       }).join('');
@@ -4824,21 +4840,22 @@
   async function onRaDateChange(input) {
     const { pid, field, disc } = input.dataset;
     const discKey = (disc || raDisc).toLowerCase();
+    const isoValue = dmyToIso(input.value);
 
     // Map generic field names to discipline-specific ones
     let actualField = field;
     if (field === 'completed_date') actualField = `completed_date_${discKey}`;
 
-    await saveReassessment(pid, actualField, input.value);
+    await saveReassessment(pid, actualField, isoValue);
 
     // When date completed is entered → auto-update discipline-specific last_eval_date
-    if (field === 'completed_date' && input.value) {
+    if (field === 'completed_date' && isoValue) {
       const raField  = `last_eval_date_${discKey}`;
       const patField = `eval_date_${discKey}`;
-      await saveReassessment(pid, raField, input.value);
+      await saveReassessment(pid, raField, isoValue);
       const idx = patients.findIndex(p => p.id === pid);
       if (idx !== -1) {
-        patients[idx][patField] = input.value;
+        patients[idx][patField] = isoValue;
         await savePatientRow(patients[idx]);
       }
     }
