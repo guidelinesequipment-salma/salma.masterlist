@@ -1293,9 +1293,16 @@
       </select>
       <!-- Year filter -->
       <select class="filter-select" id="ra-year-filter" onchange="renderReassessment()" style="width:100px;"></select>
-      <button class="btn btn-ghost" onclick="exportReassessmentExcel()" style="margin-left:auto;">
-        📊 Export Excel
-      </button>
+      <!-- Monthly Export dropdown -->
+      <div style="margin-left:auto;position:relative;" id="ra-export-wrap">
+        <button class="btn btn-ghost" onclick="toggleExportMenu()" id="ra-export-btn" style="display:flex;align-items:center;gap:6px;">
+          📊 Export Excel <span style="font-size:10px;opacity:0.6;">▼</span>
+        </button>
+        <div id="ra-export-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:210px;z-index:50;overflow:hidden;">
+          <div style="padding:8px 14px 6px;font-size:10.5px;font-weight:600;color:var(--text-muted);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Export by Month</div>
+          <div id="ra-export-month-list" style="max-height:260px;overflow-y:auto;padding:4px 0;"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Due date legend -->
@@ -4867,8 +4874,68 @@
     await saveReassessment(pid, field, input.value);
   }
 
-  // ── Excel export ──
-  async function exportReassessmentExcel() {
+  // ── Excel export (monthly) ──
+  function toggleExportMenu() {
+    const menu = document.getElementById('ra-export-menu');
+    const isOpen = menu.style.display !== 'none';
+    if (isOpen) { menu.style.display = 'none'; return; }
+
+    // Build month list from due dates of current discipline patients
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const discKey  = raDisc.toLowerCase();
+    const raField  = `last_eval_date_${discKey}`;
+    const discStaff = staff.filter(s => s.discipline === raDisc).map(s => s.name);
+    const raPats = patients.filter(p =>
+      !p.archived &&
+      (discStaff.includes(p.primary) || discStaff.includes(p.secondary) || discStaff.includes(p.tertiary))
+    );
+
+    // Collect distinct month-year combos from due dates
+    const monthSet = {};
+    raPats.forEach(p => {
+      const ra = reassessments[p.id] || {};
+      const lastEval = ra[raField] || p[`eval_date_${discKey}`] || ra.last_eval_date || '';
+      const due = calcDueDate(lastEval, p.category, p.insurance);
+      if (due) {
+        const key = `${due.getFullYear()}-${String(due.getMonth()+1).padStart(2,'0')}`;
+        const label = `${MONTHS[due.getMonth()]} ${due.getFullYear()}`;
+        monthSet[key] = label;
+      }
+    });
+
+    const sortedMonths = Object.keys(monthSet).sort();
+    const list = document.getElementById('ra-export-month-list');
+
+    // "All months" option at top
+    list.innerHTML = `
+      <div class="ra-export-option" onclick="exportReassessmentExcel(null,null)" style="padding:9px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text-primary);transition:background 0.1s;" onmouseover="this.style.background='var(--sky)'" onmouseout="this.style.background=''"
+        >📋 All Months</div>
+      <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
+      ${sortedMonths.map(key => {
+        const [yr, mo] = key.split('-');
+        return `<div class="ra-export-option" onclick="exportReassessmentExcel(${parseInt(mo)},${yr})" style="padding:9px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text-primary);transition:background 0.1s;" onmouseover="this.style.background='var(--sky)'" onmouseout="this.style.background=''">
+          📅 ${monthSet[key]}
+        </div>`;
+      }).join('')}
+      ${sortedMonths.length === 0 ? '<div style="padding:10px 16px;font-size:12.5px;color:var(--text-muted);">No due dates found</div>' : ''}
+    `;
+
+    menu.style.display = 'block';
+
+    // Close when clicking outside
+    setTimeout(() => {
+      document.addEventListener('click', function handler(e) {
+        if (!document.getElementById('ra-export-wrap').contains(e.target)) {
+          menu.style.display = 'none';
+          document.removeEventListener('click', handler);
+        }
+      });
+    }, 0);
+  }
+
+  async function exportReassessmentExcel(filterMonth, filterYear) {
+    document.getElementById('ra-export-menu').style.display = 'none';
+
     // Load SheetJS dynamically
     if (!window.XLSX) {
       await new Promise((res, rej) => {
@@ -4878,7 +4945,10 @@
         document.head.appendChild(s);
       });
     }
+
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const discKey  = raDisc.toLowerCase();
+    const raField  = `last_eval_date_${discKey}`;
     const discStaff = staff.filter(s => s.discipline === raDisc).map(s => s.name);
     const raPats = patients.filter(p =>
       !p.archived &&
@@ -4891,32 +4961,69 @@
       return '';
     };
 
+    // Build annotated list filtered by selected month/year (based on due date)
+    let annotated = raPats.map(p => {
+      const ra       = reassessments[p.id] || {};
+      const lastEval = ra[raField] || p[`eval_date_${discKey}`] || ra.last_eval_date || '';
+      const completed = ra[`completed_date_${discKey}`] || ra.completed_date || '';
+      const sig       = ra.signature  || '';
+      const comments  = ra.comments   || '';
+      const dueDate   = calcDueDate(lastEval, p.category, p.insurance);
+      return { p, lastEval, completed, sig, comments, dueDate };
+    });
+
+    if (filterMonth && filterYear) {
+      annotated = annotated.filter(({ dueDate }) =>
+        dueDate &&
+        dueDate.getMonth() + 1 === filterMonth &&
+        dueDate.getFullYear() === parseInt(filterYear)
+      );
+    }
+
+    // Sort by due date ascending
+    annotated.sort((a, b) => {
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate - b.dueDate;
+    });
+
     const rows = [
-      ['Patient Name', 'MRN', 'Location', 'Primary Therapist', 'Last Eval Date', 'Due Date', 'Date Completed', 'Signature', 'Comments']
+      ['Patient Name', 'Location', 'Primary Therapist', 'Last Eval Date', 'Due Date', 'Date Completed', 'Signature', 'Comments']
     ];
-    raPats.forEach(p => {
-      const ra        = reassessments[p.id] || {};
-      const dueDate   = calcDueDate(ra.last_eval_date, p.category, p.insurance);
+
+    annotated.forEach(({ p, lastEval, completed, sig, comments, dueDate }) => {
       rows.push([
         p.name,
-        p.mrn || '',
         `${p.ward||''} ${p.room||''}`.trim(),
         getDiscPrimary(p),
-        ra.last_eval_date || '',
-        dueDate ? fmtDate(dueDate) : '',
-        ra.completed_date || '',
-        ra.signature || '',
-        ra.comments || '',
+        lastEval  ? isoToDmy(lastEval)  : '',
+        dueDate   ? fmtDate(dueDate)    : '',
+        completed ? isoToDmy(completed) : '',
+        sig,
+        comments,
       ]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    // Column widths
-    ws['!cols'] = [30,12,14,22,14,14,14,16,30].map(w => ({ wch: w }));
+
+    // Style header row bold
+    const headerRange = XLSX.utils.decode_range(ws['!ref']);
+    for (let c = headerRange.s.c; c <= headerRange.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+      if (cell) cell.s = { font: { bold: true } };
+    }
+
+    ws['!cols'] = [28, 14, 22, 14, 14, 14, 16, 32].map(w => ({ wch: w }));
+
+    const monthLabel = filterMonth && filterYear
+      ? `${MONTHS[filterMonth-1]}_${filterYear}`
+      : 'All';
+    const sheetName = `${raDisc} ${filterMonth ? MONTHS[filterMonth-1] : 'All'}`;
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `${raDisc} Re-assessment`);
-    XLSX.writeFile(wb, `Reassessment_${raDisc}_${new Date().toISOString().slice(0,10)}.xlsx`);
-    showToast(`✅ ${raDisc} Re-assessment exported to Excel.`);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+    XLSX.writeFile(wb, `Reassessment_${raDisc}_${monthLabel}.xlsx`);
+    showToast(`✅ Exported ${annotated.length} patient${annotated.length !== 1 ? 's' : ''} for ${raDisc}${filterMonth ? ' — ' + MONTHS[filterMonth-1] + ' ' + filterYear : ''}.`);
   }
 
   if ('serviceWorker' in navigator) {
