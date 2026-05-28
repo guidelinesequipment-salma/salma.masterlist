@@ -4967,7 +4967,10 @@
       const lastEval = ra[raField] || p[`eval_date_${discKey}`] || ra.last_eval_date || '';
       const completed = ra[`completed_date_${discKey}`] || ra.completed_date || '';
       const sig       = ra.signature  || '';
-      const comments  = ra.comments   || '';
+      const rawComments = ra.comments || '';
+      const comments  = p.category === 'SSR'
+        ? rawComments ? `SSR — ${rawComments}` : 'SSR'
+        : rawComments;
       const dueDate   = calcDueDate(lastEval, p.category, p.insurance);
       return { p, lastEval, completed, sig, comments, dueDate };
     });
