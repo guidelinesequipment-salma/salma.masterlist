@@ -4991,12 +4991,13 @@
     });
 
     const rows = [
-      ['Patient Name', 'Location', 'Primary Therapist', 'Last Eval Date', 'Due Date', 'Date Completed', 'Signature', 'Comments']
+      ['Patient Name', 'MRN', 'Location', 'Primary Therapist', 'Last Eval Date', 'Due Date', 'Date Completed', 'Signature', 'Comments']
     ];
 
     annotated.forEach(({ p, lastEval, completed, sig, comments, dueDate }) => {
       rows.push([
         p.name,
+        p.mrn || '',
         `${p.ward||''} ${p.room||''}`.trim(),
         getDiscPrimary(p),
         lastEval  ? isoToDmy(lastEval)  : '',
@@ -5016,7 +5017,7 @@
       if (cell) cell.s = { font: { bold: true } };
     }
 
-    ws['!cols'] = [28, 14, 22, 14, 14, 14, 16, 32].map(w => ({ wch: w }));
+    ws['!cols'] = [28, 14, 14, 22, 14, 14, 14, 16, 32].map(w => ({ wch: w }));
 
     const monthLabel = filterMonth && filterYear
       ? `${MONTHS[filterMonth-1]}_${filterYear}`
