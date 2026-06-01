@@ -4884,17 +4884,18 @@
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const discKey  = raDisc.toLowerCase();
     const raField  = `last_eval_date_${discKey}`;
+    const ptField  = `eval_date_${discKey}`;
     const discStaff = staff.filter(s => s.discipline === raDisc || s.discipline === `${raDisc} Floater`).map(s => s.name);
     const raPats = patients.filter(p =>
       !p.archived &&
-      (discStaff.includes(p.primary) || discStaff.includes(p.secondary) || discStaff.includes(p.tertiary))
+      (p[ptField] || (reassessments[p.id] || {})[raField])
     );
 
     // Collect distinct month-year combos from due dates
     const monthSet = {};
     raPats.forEach(p => {
       const ra = reassessments[p.id] || {};
-      const lastEval = ra[raField] || p[`eval_date_${discKey}`] || ra.last_eval_date || '';
+      const lastEval = ra[raField] || p[ptField] || ra.last_eval_date || '';
       const due = calcDueDate(lastEval, p.category, p.insurance);
       if (due) {
         const key = `${due.getFullYear()}-${String(due.getMonth()+1).padStart(2,'0')}`;
@@ -4949,10 +4950,11 @@
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const discKey  = raDisc.toLowerCase();
     const raField  = `last_eval_date_${discKey}`;
+    const ptField  = `eval_date_${discKey}`;
     const discStaff = staff.filter(s => s.discipline === raDisc || s.discipline === `${raDisc} Floater`).map(s => s.name);
     const raPats = patients.filter(p =>
       !p.archived &&
-      (discStaff.includes(p.primary) || discStaff.includes(p.secondary) || discStaff.includes(p.tertiary))
+      (p[ptField] || (reassessments[p.id] || {})[raField])
     );
     const getDiscPrimary = p => {
       if (discStaff.includes(p.primary)) return p.primary;
@@ -4964,7 +4966,7 @@
     // Build annotated list filtered by selected month/year (based on due date)
     let annotated = raPats.map(p => {
       const ra       = reassessments[p.id] || {};
-      const lastEval = ra[raField] || p[`eval_date_${discKey}`] || ra.last_eval_date || '';
+      const lastEval = ra[raField] || p[ptField] || ra.last_eval_date || '';
       const completed = ra[`completed_date_${discKey}`] || ra.completed_date || '';
       const sig       = ra.signature  || '';
       const rawComments = ra.comments || '';
