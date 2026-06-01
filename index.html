@@ -4884,7 +4884,7 @@
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const discKey  = raDisc.toLowerCase();
     const raField  = `last_eval_date_${discKey}`;
-    const discStaff = staff.filter(s => s.discipline === raDisc).map(s => s.name);
+    const discStaff = staff.filter(s => s.discipline === raDisc || s.discipline === `${raDisc} Floater`).map(s => s.name);
     const raPats = patients.filter(p =>
       !p.archived &&
       (discStaff.includes(p.primary) || discStaff.includes(p.secondary) || discStaff.includes(p.tertiary))
@@ -4949,7 +4949,7 @@
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const discKey  = raDisc.toLowerCase();
     const raField  = `last_eval_date_${discKey}`;
-    const discStaff = staff.filter(s => s.discipline === raDisc).map(s => s.name);
+    const discStaff = staff.filter(s => s.discipline === raDisc || s.discipline === `${raDisc} Floater`).map(s => s.name);
     const raPats = patients.filter(p =>
       !p.archived &&
       (discStaff.includes(p.primary) || discStaff.includes(p.secondary) || discStaff.includes(p.tertiary))
