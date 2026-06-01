@@ -5002,9 +5002,9 @@
         p.mrn || '',
         `${p.ward||''} ${p.room||''}`.trim(),
         getDiscPrimary(p),
-        lastEval  ? isoToDmy(lastEval)  : '',
+        lastEval  ? fmtDate(new Date(lastEval))  : '',
         dueDate   ? fmtDate(dueDate)    : '',
-        completed ? isoToDmy(completed) : '',
+        completed ? fmtDate(new Date(completed)) : '',
         sig,
         comments,
       ]);
