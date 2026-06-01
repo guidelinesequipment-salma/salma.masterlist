@@ -4831,7 +4831,7 @@
             <td class="ra-cell-mrn">${esc(p.mrn||'—')}</td>
             <td>${esc(p.ward||'')} ${esc(p.room||'')}</td>
             <td title="${esc(getDiscPrimary(p))}">${esc(getDiscPrimary(p))}</td>
-            <td><input type="text" class="ra-input" value="${isoToDmy(lastEval)}" data-field="${raField}" data-pid="${p.id}" data-disc="${raDisc.toLowerCase()}" onchange="onRaDateChange(this)" placeholder="DD/MM/YYYY" maxlength="10" title="Last Evaluation Date"></td>
+            <td><span style="font-size:13px;color:var(--text-primary);">${lastEval ? fmtDate(new Date(lastEval)) : '—'}</span></td>
             <td>${badgeHtml}</td>
             <td><input type="text" class="ra-input" value="${isoToDmy(completed)}" data-field="completed_date" data-pid="${p.id}" data-disc="${raDisc.toLowerCase()}" onchange="onRaDateChange(this)" placeholder="DD/MM/YYYY" maxlength="10" title="Date Completed"></td>
             <td><textarea class="ra-input ra-textarea" data-field="comments" data-pid="${p.id}" onblur="onRaTextChange(this)" placeholder="Comments…">${esc(comments)}</textarea></td>
